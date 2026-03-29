@@ -182,8 +182,7 @@ async def upload_receipt(
     await db.flush()
 
     # Match purchases to products, complete matching list items
-    receipt.purchases = purchases
-    match_counts = await match_receipt_purchases(db, receipt, current_user.id)
+    match_counts = await match_receipt_purchases(db, receipt, current_user.id, purchases)
 
     await logger.ainfo(
         "receipt_uploaded",

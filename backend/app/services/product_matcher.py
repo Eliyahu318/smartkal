@@ -223,14 +223,25 @@ async def match_receipt_purchases(
     db: AsyncSession,
     receipt: Receipt,
     user_id: uuid.UUID,
+    purchases: list[Purchase] | None = None,
 ) -> dict[str, int]:
     """Match all purchases in a receipt to products.
 
     Updates Purchase records with product_id and matched=True.
     Completes matching list items and recalculates refresh frequencies.
 
+    Args:
+        purchases: Pass explicitly to avoid lazy-load in async context.
+
     Returns summary counts: {'barcode': N, 'exact_name': N, 'fuzzy': N, 'new': N, 'completed_items': N}
     """
+    if purchases is None:
+        # Fallback: query directly to avoid lazy-load MissingGreenlet error
+        result = await db.execute(
+            select(Purchase).where(Purchase.receipt_id == receipt.id)
+        )
+        purchases = list(result.scalars().all())
+
     counts: dict[str, int] = {
         "barcode": 0,
         "exact_name": 0,
@@ -239,7 +250,7 @@ async def match_receipt_purchases(
         "completed_items": 0,
     }
 
-    for purchase in receipt.purchases:
+    for purchase in purchases:
         product, match_type = await match_purchase_to_product(db, purchase)
 
         # Update purchase record
