@@ -302,14 +302,14 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want receipt items automatically matched to my existing products so that my list stays accurate.
 
 **Acceptance Criteria:**
-- [ ] `backend/app/services/product_matcher.py` — rapidfuzz Hebrew fuzzy matching
-- [ ] Match priority: barcode exact → normalized name exact → fuzzy match (threshold 0.85) → create new product
-- [ ] When matched: offer to upgrade generic name (חלב) to precise name (חלב תנובה 3% 1 ליטר)
-- [ ] `POST /api/v1/list/items/{id}/upgrade` — upgrade item name to precise receipt name
-- [ ] Matched list items marked as completed (just bought), completion timestamp recorded
-- [ ] Recalculate refresh frequencies for affected products
-- [ ] Tests: exact match, fuzzy Hebrew match, barcode match, no match creates new, upgrade flow
-- [ ] Typecheck passes
+- [x] `backend/app/services/product_matcher.py` — rapidfuzz Hebrew fuzzy matching
+- [x] Match priority: barcode exact → normalized name exact → fuzzy match (threshold 0.85) → create new product
+- [x] When matched: offer to upgrade generic name (חלב) to precise name (חלב תנובה 3% 1 ליטר)
+- [x] `POST /api/v1/list/items/{id}/upgrade` — upgrade item name to precise receipt name
+- [x] Matched list items marked as completed (just bought), completion timestamp recorded
+- [x] Recalculate refresh frequencies for affected products
+- [x] Tests: exact match, fuzzy Hebrew match, barcode match, no match creates new, upgrade flow
+- [x] Typecheck passes
 
 ---
 

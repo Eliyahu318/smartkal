@@ -210,16 +210,21 @@ class TestUploadFlow:
     """Test the full upload flow with mocked PDF extraction and Claude parsing."""
 
     @pytest.mark.anyio
+    @patch("app.api.v1.receipt.match_receipt_purchases")
     @patch("app.api.v1.receipt.parse_receipt")
     @patch("app.api.v1.receipt.extract_text_from_pdf")
     async def test_upload_success(
         self,
         mock_extract: AsyncMock,
         mock_parse: AsyncMock,
+        mock_match: AsyncMock,
     ) -> None:
         """Successful upload creates receipt and purchase records."""
         mock_extract.return_value = "receipt text content"
         mock_parse.return_value = _make_parsed_receipt()
+        mock_match.return_value = {
+            "barcode": 1, "exact_name": 0, "fuzzy": 0, "new": 1, "completed_items": 0,
+        }
 
         mock_session = AsyncMock(spec=AsyncSession)
 
@@ -261,24 +266,32 @@ class TestUploadFlow:
         assert len(data["receipt"]["purchases"]) == 2
         assert data["receipt"]["purchases"][0]["raw_name"] == "חלב תנובה 3%"
         assert data["receipt"]["purchases"][1]["raw_name"] == "לחם אחיד"
+        assert data["match_counts"]["barcode"] == 1
+        assert data["match_counts"]["new"] == 1
 
         # Verify PDF extraction and Claude parse were called
         mock_extract.assert_called_once()
         mock_parse.assert_called_once_with("receipt text content")
+        mock_match.assert_called_once()
 
     @pytest.mark.anyio
+    @patch("app.api.v1.receipt.match_receipt_purchases")
     @patch("app.api.v1.receipt.parse_receipt")
     @patch("app.api.v1.receipt.extract_text_from_pdf")
     async def test_upload_with_invalid_date(
         self,
         mock_extract: AsyncMock,
         mock_parse: AsyncMock,
+        mock_match: AsyncMock,
     ) -> None:
         """Upload handles invalid receipt_date gracefully."""
         parsed = _make_parsed_receipt()
         parsed.receipt_date = "not-a-date"
         mock_extract.return_value = "text"
         mock_parse.return_value = parsed
+        mock_match.return_value = {
+            "barcode": 0, "exact_name": 0, "fuzzy": 0, "new": 2, "completed_items": 0,
+        }
 
         mock_session = AsyncMock(spec=AsyncSession)
 

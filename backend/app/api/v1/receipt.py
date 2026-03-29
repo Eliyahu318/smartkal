@@ -19,6 +19,7 @@ from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.models.receipt import Purchase, Receipt
 from app.models.user import User
+from app.services.product_matcher import match_receipt_purchases
 from app.services.receipt_parser import ParsedReceipt, parse_receipt
 from app.utils.pdf import extract_text_from_pdf
 
@@ -73,9 +74,18 @@ class ReceiptListResponse(BaseModel):
     page_size: int
 
 
+class MatchCountsResponse(BaseModel):
+    barcode: int = 0
+    exact_name: int = 0
+    fuzzy: int = 0
+    new: int = 0
+    completed_items: int = 0
+
+
 class UploadReceiptResponse(BaseModel):
     receipt: ReceiptDetailResponse
     parsed_item_count: int
+    match_counts: MatchCountsResponse | None = None
 
 
 # --- Helpers ---
@@ -171,12 +181,17 @@ async def upload_receipt(
         db.add(purchase)
     await db.flush()
 
+    # Match purchases to products, complete matching list items
+    receipt.purchases = purchases
+    match_counts = await match_receipt_purchases(db, receipt, current_user.id)
+
     await logger.ainfo(
         "receipt_uploaded",
         receipt_id=str(receipt.id),
         store=parsed.store_name,
         item_count=len(purchases),
         total=str(parsed.total_amount),
+        match_counts=match_counts,
     )
 
     detail = ReceiptDetailResponse(
@@ -195,6 +210,7 @@ async def upload_receipt(
     return UploadReceiptResponse(
         receipt=detail,
         parsed_item_count=len(purchases),
+        match_counts=MatchCountsResponse(**match_counts),
     )
 
 

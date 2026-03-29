@@ -17,6 +17,7 @@ from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.models.category import Category
 from app.models.list_item import ListItem, ListItemSource, ListItemStatus
+from app.models.product import Product
 from app.models.user import User
 from app.services.categorizer import auto_categorize
 from app.services.refresh_engine import activate_overdue_items, calculate_refresh_for_item
@@ -93,6 +94,13 @@ class PreferencesRequest(BaseModel):
 class RefreshResponse(BaseModel):
     activated_count: int
     activated_items: list[ListItemResponse]
+
+
+class UpgradeItemRequest(BaseModel):
+    precise_name: str = Field(
+        ..., min_length=1, max_length=500,
+        description="Precise product name from receipt (e.g., 'חלב תנובה 3% 1 ליטר')",
+    )
 
 
 class SuggestionItem(BaseModel):
@@ -453,6 +461,46 @@ async def update_item_preferences(
         "item_preferences_updated",
         item_id=str(item_id),
         auto_refresh_days=body.auto_refresh_days,
+    )
+
+    return ListItemResponse.model_validate(item)
+
+
+@router.patch("/items/{item_id}/upgrade", response_model=ListItemResponse)
+async def upgrade_item_name(
+    item_id: uuid.UUID,
+    body: UpgradeItemRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Upgrade a list item's generic name to a precise receipt name.
+
+    Also updates the linked product's name if one exists.
+    """
+    from app.services.product_matcher import normalize_hebrew_name
+
+    item = await _get_user_item(db, item_id, current_user.id)
+
+    old_name = item.name
+    item.name = body.precise_name
+
+    # Update linked product name if exists
+    if item.product_id is not None:
+        result = await db.execute(
+            select(Product).where(Product.id == item.product_id)
+        )
+        product = result.scalar_one_or_none()
+        if product is not None:
+            product.name = body.precise_name
+            product.normalized_name = normalize_hebrew_name(body.precise_name)
+
+    await db.flush()
+
+    await logger.ainfo(
+        "item_name_upgraded",
+        item_id=str(item_id),
+        old_name=old_name,
+        new_name=body.precise_name,
     )
 
     return ListItemResponse.model_validate(item)
