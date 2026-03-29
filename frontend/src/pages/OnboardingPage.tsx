@@ -71,6 +71,8 @@ const VALUE_CARDS = [
 // ---------- Step 1: Login ----------
 function StepLogin() {
   const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
+  const loginAsGuest = useAuthStore((s) => s.loginAsGuest);
+  const [guestLoading, setGuestLoading] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
 
   const handleCredentialResponse = useCallback(
@@ -133,8 +135,8 @@ function StepLogin() {
         </p>
       </div>
 
-      {/* Google Sign-In */}
-      <div className="flex flex-col items-center gap-4">
+      {/* Google Sign-In + Guest */}
+      <div className="flex w-full max-w-sm flex-col items-center gap-4">
         <div ref={buttonRef} />
 
         {!GOOGLE_CLIENT_ID && (
@@ -142,6 +144,34 @@ function StepLogin() {
             Google Client ID לא הוגדר — הוסף VITE_GOOGLE_CLIENT_ID ל-.env
           </p>
         )}
+
+        {/* Divider */}
+        <div className="relative w-full">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-white px-2 text-gray-500">או</span>
+          </div>
+        </div>
+
+        {/* Guest login */}
+        <button
+          onClick={async () => {
+            setGuestLoading(true);
+            try {
+              await loginAsGuest();
+            } catch (err: unknown) {
+              showToast(getErrorMessageHe(err));
+            } finally {
+              setGuestLoading(false);
+            }
+          }}
+          disabled={guestLoading}
+          className="w-full rounded-full border-2 border-gray-300 bg-white px-8 py-3 text-base font-semibold text-gray-700 shadow-sm transition-all hover:border-green-400 hover:shadow-md disabled:opacity-50"
+        >
+          {guestLoading ? "מתחבר..." : "כניסה כאורח"}
+        </button>
       </div>
 
       {/* Footer */}

@@ -27,6 +27,8 @@ interface AuthState {
 
   /** Log in with a Google id_token received from GIS */
   loginWithGoogle: (idToken: string) => Promise<void>;
+  /** Log in as a guest (no credentials needed) */
+  loginAsGuest: () => Promise<void>;
   /** Refresh the token pair; returns new access token or null */
   refreshTokens: () => Promise<string | null>;
   /** Fetch the current user profile */
@@ -61,6 +63,22 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     set({ _tokens: tokens });
 
     // Fetch user profile
+    await get().fetchMe();
+  },
+
+  loginAsGuest: async () => {
+    const { data } = await api.post<{
+      access_token: string;
+      refresh_token: string;
+      token_type: string;
+    }>("/api/v1/auth/guest", {});
+
+    const tokens: TokenPair = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    };
+    set({ _tokens: tokens });
+
     await get().fetchMe();
   },
 

@@ -99,6 +99,31 @@ async def google_login(
     return TokenResponse(**tokens)
 
 
+@router.post("/guest", response_model=TokenResponse)
+async def guest_login(
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Create a temporary guest user and return JWT pair."""
+    guest_id = uuid.uuid4()
+
+    user = User(
+        email=f"guest-{guest_id}@smartkal.local",
+        name="אורח",
+        picture_url=None,
+        google_sub=f"guest-{guest_id}",
+    )
+    db.add(user)
+    await db.flush()
+
+    await seed_categories_for_user(db, user.id)
+    await db.commit()
+
+    await logger.ainfo("guest_user_created", user_id=str(user.id))
+
+    tokens = create_token_pair(user.id)
+    return TokenResponse(**tokens)
+
+
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_tokens(
     body: RefreshRequest,
