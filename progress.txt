@@ -211,3 +211,18 @@
   - Traps: Don't import `distinct` from sqlalchemy when deduplicating in Python — unused imports cause linting issues; FAB positioning with `fixed bottom-24 left-1/2 -translate-x-1/2` works for mobile but needs `sm:absolute` for phone-frame desktop layout
   - Helpful context: Suggestions endpoint uses ilike for case-insensitive contains match; AddItemInput keeps input open after submit for adding multiple items; auto-refresh badge uses `h-2 w-2 rounded-full bg-green-400` for a subtle green dot
 ---
+
+## Iteration 15 — US-015: Shopping list UI — swipe to delete and item details
+- What was done: Created SwipeableListItem.tsx wrapping ListItem with touch-based swipe-to-delete (swipe left reveals red "הסר" button, threshold 80px) and long-press detection (500ms) for opening item details. Created ItemDetailsSheet.tsx bottom sheet with quantity, note, and refresh frequency override fields. Bottom sheet saves via PUT /api/v1/list/items/{id} for item details and PATCH /api/v1/list/items/{id}/preferences for refresh override. Updated CategorySection, ShoppingList (including CompletedSection), and ListPage to thread through onDelete and onLongPress callbacks. Added slide-up animation keyframe to Tailwind config. Delete uses DELETE /api/v1/list/items/{id} endpoint. All 143 backend tests pass, TypeScript typecheck passes.
+- Files affected:
+  - frontend/src/components/SwipeableListItem.tsx (new) — touch swipe with RTL-aware left swipe, long-press timer, delete animation, mouse fallback for desktop
+  - frontend/src/components/ItemDetailsSheet.tsx (new) — bottom sheet with quantity/note/refreshDays fields, backdrop click to close, saves item details + preferences
+  - frontend/src/components/CategorySection.tsx (updated) — uses SwipeableListItem, passes onDelete/onLongPress
+  - frontend/src/components/ShoppingList.tsx (updated) — threads onDelete/onLongPress through to CategorySection and CompletedSection
+  - frontend/src/pages/ListPage.tsx (updated) — added handleDelete, handleLongPress, detailsItem state, ItemDetailsSheet integration
+  - frontend/tailwind.config.ts (updated) — added slide-up keyframe animation
+- Learnings for next cycles:
+  - Patterns: Wrap ListItem in a SwipeableListItem for touch interactions without modifying the base component; use useRef for tracking touch coordinates to avoid re-renders during swipe; RTL swipe-left maps to positive deltaX (startX - currentX); separate timer ref for long-press with cleanup on touch move
+  - Traps: In RTL layout, "end-0" positions to the left side (where delete button should appear after left swipe); must use `swiping ? "none" : transition` on transform to avoid laggy touch following; CSS overflow-hidden on container prevents delete button from showing outside bounds
+  - Helpful context: DELETE_THRESHOLD = 80px for swipe activation; LONG_PRESS_MS = 500ms; animate-slide-up uses 250ms ease-out; bottom sheet max-width matches phone frame (430px); ItemDetailsSheet conditionally sends PUT only when quantity/note changed and PATCH only when refreshDays changed
+---

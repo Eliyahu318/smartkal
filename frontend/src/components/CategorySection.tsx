@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { ListItem } from "./ListItem";
+import { SwipeableListItem } from "./SwipeableListItem";
 import type { CategoryGroup, ListItemData } from "./ShoppingList";
 
 interface CategorySectionProps {
   group: CategoryGroup;
   onToggle?: (item: ListItemData) => void;
+  onDelete?: (item: ListItemData) => void;
+  onLongPress?: (item: ListItemData) => void;
 }
 
-export function CategorySection({ group, onToggle }: CategorySectionProps) {
+export function CategorySection({ group, onToggle, onDelete, onLongPress }: CategorySectionProps) {
   const [collapsed, setCollapsed] = useState(false);
   const label = group.category?.name ?? "ללא קטגוריה";
 
@@ -37,7 +39,13 @@ export function CategorySection({ group, onToggle }: CategorySectionProps) {
       {!collapsed && (
         <div>
           {group.items.map((item) => (
-            <ListItem key={item.id} item={item} onToggle={onToggle} />
+            <SwipeableListItem
+              key={item.id}
+              item={item}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              onLongPress={onLongPress}
+            />
           ))}
         </div>
       )}

@@ -236,11 +236,11 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want to swipe left to delete items and long-press for details so that I can manage items quickly.
 
 **Acceptance Criteria:**
-- [ ] Swipe left on item → reveal red "הסר" button
-- [ ] Swipe delete calls `DELETE /api/v1/list/items/{id}`
-- [ ] Long press → bottom sheet with quantity, note, frequency override fields
-- [ ] Bottom sheet saves via `PUT /api/v1/list/items/{id}` and `PATCH /api/v1/list/items/{id}/preferences`
-- [ ] Typecheck passes
+- [x] Swipe left on item → reveal red "הסר" button
+- [x] Swipe delete calls `DELETE /api/v1/list/items/{id}`
+- [x] Long press → bottom sheet with quantity, note, frequency override fields
+- [x] Bottom sheet saves via `PUT /api/v1/list/items/{id}` and `PATCH /api/v1/list/items/{id}/preferences`
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

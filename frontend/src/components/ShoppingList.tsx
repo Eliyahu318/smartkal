@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CategorySection } from "./CategorySection";
-import { ListItem } from "./ListItem";
+import { SwipeableListItem } from "./SwipeableListItem";
 
 // --- Shared types ---
 
@@ -47,9 +47,11 @@ export interface ListResponse {
 interface ShoppingListProps {
   data: ListResponse;
   onToggle?: (item: ListItemData) => void;
+  onDelete?: (item: ListItemData) => void;
+  onLongPress?: (item: ListItemData) => void;
 }
 
-export function ShoppingList({ data, onToggle }: ShoppingListProps) {
+export function ShoppingList({ data, onToggle, onDelete, onLongPress }: ShoppingListProps) {
   // Separate active and completed groups
   const activeGroups: CategoryGroup[] = [];
   const completedItems: ListItemData[] = [];
@@ -72,6 +74,8 @@ export function ShoppingList({ data, onToggle }: ShoppingListProps) {
           key={group.category?.id ?? "uncategorized"}
           group={group}
           onToggle={onToggle}
+          onDelete={onDelete}
+          onLongPress={onLongPress}
         />
       ))}
 
@@ -84,7 +88,12 @@ export function ShoppingList({ data, onToggle }: ShoppingListProps) {
 
       {/* Completed section */}
       {completedItems.length > 0 && (
-        <CompletedSection items={completedItems} onToggle={onToggle} />
+        <CompletedSection
+          items={completedItems}
+          onToggle={onToggle}
+          onDelete={onDelete}
+          onLongPress={onLongPress}
+        />
       )}
     </div>
   );
@@ -95,9 +104,11 @@ export function ShoppingList({ data, onToggle }: ShoppingListProps) {
 interface CompletedSectionProps {
   items: ListItemData[];
   onToggle?: (item: ListItemData) => void;
+  onDelete?: (item: ListItemData) => void;
+  onLongPress?: (item: ListItemData) => void;
 }
 
-function CompletedSection({ items, onToggle }: CompletedSectionProps) {
+function CompletedSection({ items, onToggle, onDelete, onLongPress }: CompletedSectionProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -118,7 +129,13 @@ function CompletedSection({ items, onToggle }: CompletedSectionProps) {
       {expanded && (
         <div>
           {items.map((item) => (
-            <ListItem key={item.id} item={item} onToggle={onToggle} />
+            <SwipeableListItem
+              key={item.id}
+              item={item}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              onLongPress={onLongPress}
+            />
           ))}
         </div>
       )}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import api from "../api/client";
 import { AddItemInput } from "../components/AddItemInput";
+import { ItemDetailsSheet } from "../components/ItemDetailsSheet";
 import { ShoppingList } from "../components/ShoppingList";
 import type { ListItemData, ListResponse } from "../components/ShoppingList";
 
@@ -8,6 +9,7 @@ export function ListPage() {
   const [data, setData] = useState<ListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [detailsItem, setDetailsItem] = useState<ListItemData | null>(null);
   const refreshedRef = useRef(false);
 
   const fetchList = useCallback(async (signal?: AbortSignal) => {
@@ -54,11 +56,27 @@ export function ListPage() {
 
     try {
       await api.patch(endpoint);
-      // Re-fetch the full list to get correct groupings
       await fetchList();
     } catch {
       setError("שגיאה בעדכון הפריט");
     }
+  }, [fetchList]);
+
+  const handleDelete = useCallback(async (item: ListItemData) => {
+    try {
+      await api.delete(`/api/v1/list/items/${item.id}`);
+      await fetchList();
+    } catch {
+      setError("שגיאה במחיקת הפריט");
+    }
+  }, [fetchList]);
+
+  const handleLongPress = useCallback((item: ListItemData) => {
+    setDetailsItem(item);
+  }, []);
+
+  const handleDetailsSaved = useCallback(async () => {
+    await fetchList();
   }, [fetchList]);
 
   const handleItemAdded = useCallback(async () => {
@@ -89,8 +107,20 @@ export function ListPage() {
 
       {/* List */}
       {data && !loading && (
-        <ShoppingList data={data} onToggle={handleToggle} />
+        <ShoppingList
+          data={data}
+          onToggle={handleToggle}
+          onDelete={handleDelete}
+          onLongPress={handleLongPress}
+        />
       )}
+
+      {/* Item details bottom sheet */}
+      <ItemDetailsSheet
+        item={detailsItem}
+        onClose={() => setDetailsItem(null)}
+        onSaved={handleDetailsSaved}
+      />
     </div>
   );
 }
