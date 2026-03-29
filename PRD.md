@@ -426,10 +426,10 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Acceptance Criteria:**
 - [x] Backend Dockerfile (multi-stage, slim Python)
 - [x] `render.yaml` with: frontend static site, backend web service, PostgreSQL database
-- [ ] Frontend: build command, static publish path, SPA rewrite rule
-- [ ] Backend: start command with uvicorn, health check path, env vars from Render
-- [ ] CORS configured for production domain
-- [ ] Security headers middleware
+- [x] Frontend: build command, static publish path, SPA rewrite rule
+- [x] Backend: start command with uvicorn, health check path, env vars from Render
+- [x] CORS configured for production domain
+- [x] Security headers middleware
 - [ ] Rate limiting middleware (10 uploads/hour, 100 calls/minute)
 - [ ] Deploy succeeds, health endpoint responds, frontend loads
 - [ ] Typecheck passes
