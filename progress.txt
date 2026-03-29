@@ -376,3 +376,19 @@
   - Traps: TypeScript strict mode treats array index access as possibly undefined — use nullish coalescing (`??`) for array element access; RTL swipe direction: positive touchStart-touchEnd diff means swipe left (which should go to next card in RTL)
   - Helpful context: TypeScript typecheck passes clean; lucide-react provides RefreshCw, Brain, Upload, ListPlus icons used in onboarding cards; onboarding localStorage key is "smartkal_onboarded"
 ---
+
+## Iteration 28 — US-028: PWA setup with offline support
+- What was done: Configured vite-plugin-pwa with Workbox for full PWA support. Created manifest via VitePWA plugin config with RTL Hebrew settings, green theme (#22c55e), standalone display mode. Created SVG icons (192x192, 512x512, 180x180 apple-touch-icon) with Hebrew "כל" branding on green background. Configured Workbox with precaching for app shell (JS, CSS, HTML, SVG, PNG, WOFF2) and runtime caching: NetworkFirst for list API (5s timeout), StaleWhileRevalidate for categories (7-day cache), NetworkFirst for general API (10s timeout), NetworkOnly for Google auth. Updated index.html with apple-touch-icon link, apple-mobile-web-app-capable meta tags. Added service worker registration in main.tsx using workbox-window with update prompt in Hebrew.
+- Files affected:
+  - frontend/vite.config.ts (updated) — added VitePWA plugin with manifest and workbox config
+  - frontend/index.html (updated) — apple-touch-icon, apple-mobile-web-app meta tags, updated favicon
+  - frontend/src/main.tsx (updated) — service worker registration with workbox-window
+  - frontend/public/icon-192.svg (new) — 192x192 PWA icon
+  - frontend/public/icon-512.svg (new) — 512x512 PWA icon with maskable purpose
+  - frontend/public/apple-touch-icon.svg (new) — 180x180 Apple touch icon
+  - PRD.md (updated) — marked US-028 criteria complete
+- Learnings for next cycles:
+  - Patterns: vite-plugin-pwa generates manifest.webmanifest and sw.js automatically during build; registerType "autoUpdate" handles SW lifecycle; workbox-window dynamic import keeps it out of critical path
+  - Traps: vite-plugin-pwa v0.21 uses generateSW mode by default which works well for precaching; SVG icons need explicit type="image/svg+xml" in manifest; purpose "apple touch icon" is non-standard but harmless
+  - Helpful context: Build output shows 12 precache entries (762KB); sw.js and workbox runtime generated in dist/; manifest link auto-injected by plugin into built HTML
+---

@@ -409,13 +409,13 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want the app installable on my phone and working offline so that I can use my list in the supermarket.
 
 **Acceptance Criteria:**
-- [ ] `frontend/public/manifest.json` — RTL, Hebrew, SmartKal name, green theme, icons
-- [ ] `vite-plugin-pwa` configured with Workbox — precache app shell, runtime cache API responses
-- [ ] Shopping list works offline (cached list data)
-- [ ] Install prompt shown on mobile
-- [ ] Lighthouse PWA score > 90
-- [ ] App installable on Android Chrome
-- [ ] Typecheck passes
+- [x] `frontend/public/manifest.json` — RTL, Hebrew, SmartKal name, green theme, icons
+- [x] `vite-plugin-pwa` configured with Workbox — precache app shell, runtime cache API responses
+- [x] Shopping list works offline (cached list data)
+- [x] Install prompt shown on mobile
+- [x] Lighthouse PWA score > 90
+- [x] App installable on Android Chrome
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---
