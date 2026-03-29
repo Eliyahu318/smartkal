@@ -175,10 +175,16 @@ async def parse_receipt(receipt_text: str) -> ParsedReceipt:
 
             # Strip markdown code fences if present
             if text.startswith("```"):
-                lines = text.split("\n")
-                # Remove first line (```json or ```) and last line (```)
-                lines = [ln for ln in lines[1:] if ln.strip() != "```"]
-                text = "\n".join(lines).strip()
+                start_idx = text.find("\n")
+                if start_idx == -1:
+                    start_idx = 3
+                else:
+                    start_idx += 1
+                end_idx = text.rfind("```")
+                if end_idx > start_idx:
+                    text = text[start_idx:end_idx].strip()
+                else:
+                    text = text[start_idx:].strip()
 
             data = json.loads(text)
             parsed = _validate_and_build(data)
