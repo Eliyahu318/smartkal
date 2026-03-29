@@ -357,12 +357,12 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a developer, I want spending analytics endpoints so that the frontend can display charts.
 
 **Acceptance Criteria:**
-- [ ] `GET /api/v1/dashboard/spending?period=month` — spending by category
-- [ ] `GET /api/v1/dashboard/stores` — spending per store chain
-- [ ] `GET /api/v1/dashboard/trends` — monthly spending trend
-- [ ] All endpoints user-scoped
-- [ ] Tests: correct aggregation from receipt/purchase data
-- [ ] Typecheck passes
+- [x] `GET /api/v1/dashboard/spending?period=month` — spending by category
+- [x] `GET /api/v1/dashboard/stores` — spending per store chain
+- [x] `GET /api/v1/dashboard/trends` — monthly spending trend
+- [x] All endpoints user-scoped
+- [x] Tests: correct aggregation from receipt/purchase data
+- [x] Typecheck passes
 
 ---
 

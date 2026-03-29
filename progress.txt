@@ -323,3 +323,16 @@
   - Traps: MagicMock attributes return MagicMock objects which can't be compared with < operator — use plain tuples for DB row mocks in unit tests; list[StoreBasket] is not assignable to list[object] in mypy strict (invariance) — use the concrete type
   - Helpful context: 272 total tests pass (12 new + 260 existing); mypy strict passes on all 38 source files; frontend PriceComparisonCard.tsx already calls GET /api/v1/prices/compare-list — this endpoint now fulfills that contract; coverage_text in Hebrew with percentage for partial matches
 ---
+
+## Iteration 14 — US-024: Dashboard backend API
+- What was done: Created dashboard API router with three analytics endpoints: spending by category, spending by store, and monthly spending trends. All endpoints are user-scoped via get_current_user dependency. Registered router in api_v1_router.
+- Files affected:
+  - backend/app/api/v1/dashboard.py (new) — three GET endpoints: /spending, /stores, /trends with Pydantic response models
+  - backend/app/api/v1/__init__.py (updated) — registered dashboard_router
+  - backend/tests/test_dashboard.py (new) — 12 tests covering all endpoints, empty states, period validation, Hebrew fallback labels
+  - PRD.md (updated) — marked US-024 complete
+- Learnings for next cycles:
+  - Patterns: Use tuple indexing (row[0], row[1]) for SQLAlchemy aggregate query results in tests; func.coalesce for nullable fields with Hebrew fallback labels ("אחר", "לא ידוע"); Query parameter validation with pattern regex rejects invalid values with 422
+  - Traps: func.to_char is PostgreSQL-specific — works for prod but mock tests bypass actual SQL execution so this is fine; Decimal(str(row[1])) needed for sum of mock Decimal values to avoid float precision issues
+  - Helpful context: 284 total tests pass (12 new + 272 existing); mypy strict passes on all 39 source files; dashboard endpoints at /api/v1/dashboard/*; spending endpoint joins Purchase→Receipt→Product→Category for category breakdown; trends uses last 12 months window
+---
