@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { CategorySection } from "./CategorySection";
+import { ListItem } from "./ListItem";
 
 // --- Shared types ---
 
@@ -44,9 +46,10 @@ export interface ListResponse {
 
 interface ShoppingListProps {
   data: ListResponse;
+  onToggle?: (item: ListItemData) => void;
 }
 
-export function ShoppingList({ data }: ShoppingListProps) {
+export function ShoppingList({ data, onToggle }: ShoppingListProps) {
   // Separate active and completed groups
   const activeGroups: CategoryGroup[] = [];
   const completedItems: ListItemData[] = [];
@@ -68,6 +71,7 @@ export function ShoppingList({ data }: ShoppingListProps) {
         <CategorySection
           key={group.category?.id ?? "uncategorized"}
           group={group}
+          onToggle={onToggle}
         />
       ))}
 
@@ -80,7 +84,7 @@ export function ShoppingList({ data }: ShoppingListProps) {
 
       {/* Completed section */}
       {completedItems.length > 0 && (
-        <CompletedSection items={completedItems} />
+        <CompletedSection items={completedItems} onToggle={onToggle} />
       )}
     </div>
   );
@@ -88,10 +92,12 @@ export function ShoppingList({ data }: ShoppingListProps) {
 
 // --- Completed section (collapsed by default) ---
 
-import { useState } from "react";
-import { ListItem } from "./ListItem";
+interface CompletedSectionProps {
+  items: ListItemData[];
+  onToggle?: (item: ListItemData) => void;
+}
 
-function CompletedSection({ items }: { items: ListItemData[] }) {
+function CompletedSection({ items, onToggle }: CompletedSectionProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -112,7 +118,7 @@ function CompletedSection({ items }: { items: ListItemData[] }) {
       {expanded && (
         <div>
           {items.map((item) => (
-            <ListItem key={item.id} item={item} />
+            <ListItem key={item.id} item={item} onToggle={onToggle} />
           ))}
         </div>
       )}

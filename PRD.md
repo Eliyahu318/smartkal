@@ -209,11 +209,11 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want smooth animations when checking off items and a collapsible completed section.
 
 **Acceptance Criteria:**
-- [ ] Tap ○ → animates to ● green, item text becomes gray with line-through, slides to completed section
-- [ ] Tap ● → animates back to ○, item returns to active section
-- [ ] `CompletedSection.tsx` — collapsible "X הושלמו · ניקוי" with show/hide toggle
-- [ ] Calls `PATCH /api/v1/list/items/{id}/complete` and `/activate` endpoints
-- [ ] Typecheck passes
+- [x] Tap ○ → animates to ● green, item text becomes gray with line-through, slides to completed section
+- [x] Tap ● → animates back to ○, item returns to active section
+- [x] `CompletedSection.tsx` — collapsible "X הושלמו · ניקוי" with show/hide toggle
+- [x] Calls `PATCH /api/v1/list/items/{id}/complete` and `/activate` endpoints
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

@@ -184,3 +184,16 @@
   - Traps: API returns items grouped by category with mixed statuses — need to filter active vs completed per group on the frontend; import default export from client.ts as `api` (lowercase)
   - Helpful context: ListResponse matches backend's ListResponse schema exactly; Apple Reminders style achieved with 22px circles, 15px text, gray-400 for completed items, ChevronDown with rotate transition; CompletedSection collapsed by default with show/hide toggle in Hebrew
 ---
+
+## Iteration 13 — US-013: Shopping list UI — check/uncheck animations and completed section
+- What was done: Added check/uncheck toggle functionality with CSS transition animations to the shopping list UI. ListItem.tsx now has an onToggle callback with optimistic visual flip — tapping the circle animates it between empty and filled green (with scale-110 pop effect) using 300ms CSS transitions on border, background, opacity, and scale. Item text transitions between normal and gray+line-through. The animation state is managed locally with useState, and the actual API call fires after the 300ms animation completes. The onToggle prop is threaded through ShoppingList → CategorySection → ListItem. ListPage.tsx handles the toggle by calling PATCH /api/v1/list/items/{id}/complete or /activate, then re-fetches the full list to update groupings. Used AbortController pattern instead of cancelled flag for cleaner fetch cleanup. CompletedSection already existed with show/hide toggle — now also receives onToggle so completed items can be reactivated.
+- Files affected:
+  - frontend/src/components/ListItem.tsx (updated) — added onToggle prop, local animation state, optimistic checked visual, CSS transition classes, accessible button with Hebrew aria-label
+  - frontend/src/components/CategorySection.tsx (updated) — added onToggle prop passthrough to ListItem
+  - frontend/src/components/ShoppingList.tsx (updated) — added onToggle prop passthrough to CategorySection and CompletedSection
+  - frontend/src/pages/ListPage.tsx (updated) — added handleToggle with PATCH API calls and re-fetch, switched to AbortController, extracted fetchList as useCallback for reuse
+- Learnings for next cycles:
+  - Patterns: Optimistic animation via local state flip + setTimeout → API call gives instant feedback; AbortController is cleaner than cancelled flag for fetch cleanup; useCallback for fetchList enables reuse in both useEffect and event handlers
+  - Traps: Don't use optimistic state updates on the data model when items move between sections (active↔completed) — re-fetching is more reliable since the server recalculates groupings and refresh timestamps
+  - Helpful context: Transitions use Tailwind's transition-all duration-300; scale-110 on check gives Apple-like "pop" effect; circle button has aria-label in Hebrew for accessibility ("הפעל מחדש" / "סמן כהושלם")
+---
