@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,6 +93,15 @@ class PreferencesRequest(BaseModel):
 class RefreshResponse(BaseModel):
     activated_count: int
     activated_items: list[ListItemResponse]
+
+
+class SuggestionItem(BaseModel):
+    name: str
+    category_id: uuid.UUID | None
+
+
+class SuggestionsResponse(BaseModel):
+    suggestions: list[SuggestionItem]
 
 
 # --- Helpers ---
@@ -197,6 +206,42 @@ async def get_list(
         total_active=total_active,
         total_completed=total_completed,
     )
+
+
+@router.get("/suggestions", response_model=SuggestionsResponse)
+async def get_suggestions(
+    q: str = Query("", min_length=0, max_length=200, description="Search query"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Return distinct item names from user's history for autocomplete.
+
+    Searches completed and active items matching the query prefix.
+    Returns up to 10 unique names ordered by most recently used.
+    """
+    query = (
+        select(ListItem.name, ListItem.category_id)
+        .where(ListItem.user_id == current_user.id)
+        .order_by(ListItem.updated_at.desc())
+    )
+
+    if q:
+        query = query.where(ListItem.name.ilike(f"%{q}%"))
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # Deduplicate by name, keeping the first (most recent) occurrence
+    seen: set[str] = set()
+    suggestions: list[SuggestionItem] = []
+    for name, category_id in rows:
+        if name not in seen:
+            seen.add(name)
+            suggestions.append(SuggestionItem(name=name, category_id=category_id))
+        if len(suggestions) >= 10:
+            break
+
+    return SuggestionsResponse(suggestions=suggestions)
 
 
 @router.post("/items", response_model=ListItemResponse, status_code=201)

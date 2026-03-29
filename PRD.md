@@ -222,12 +222,12 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want to quickly add items with a FAB button and get Hebrew autocomplete suggestions from my product history.
 
 **Acceptance Criteria:**
-- [ ] `AddItemInput.tsx` — tap ⊕ FAB opens inline text input
-- [ ] Hebrew autocomplete from product history
-- [ ] Calls `POST /api/v1/list/items` on submit
-- [ ] Auto-refreshed items show a small green dot badge
-- [ ] Calls `POST /api/v1/list/refresh` on app open
-- [ ] Typecheck passes
+- [x] `AddItemInput.tsx` — tap ⊕ FAB opens inline text input
+- [x] Hebrew autocomplete from product history
+- [x] Calls `POST /api/v1/list/items` on submit
+- [x] Auto-refreshed items show a small green dot badge
+- [x] Calls `POST /api/v1/list/refresh` on app open
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

@@ -767,3 +767,103 @@ class TestAuthProtection:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.delete(f"/api/v1/list/items/{uuid.uuid4()}")
         assert response.status_code == 401
+
+    @pytest.mark.anyio
+    async def test_suggestions_requires_auth(self) -> None:
+        app = _make_test_app()
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/list/suggestions?q=חלב")
+        assert response.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/list/suggestions — autocomplete
+# ---------------------------------------------------------------------------
+
+
+class TestSuggestions:
+    """Test autocomplete suggestions endpoint."""
+
+    @pytest.mark.anyio
+    async def test_suggestions_returns_matching_items(self) -> None:
+        """Suggestions returns distinct item names matching query."""
+        cat_id = uuid.uuid4()
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        result = MagicMock()
+        result.all.return_value = [
+            ("חלב תנובה 3%", cat_id),
+            ("חלב שוקו", cat_id),
+        ]
+        mock_session.execute.return_value = result
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/list/suggestions",
+                params={"q": "חלב"},
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["suggestions"]) == 2
+        assert data["suggestions"][0]["name"] == "חלב תנובה 3%"
+        assert data["suggestions"][1]["name"] == "חלב שוקו"
+
+    @pytest.mark.anyio
+    async def test_suggestions_empty_query(self) -> None:
+        """Empty query returns empty suggestions (no DB query with empty q)."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        result = MagicMock()
+        result.all.return_value = []
+        mock_session.execute.return_value = result
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/list/suggestions",
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data["suggestions"], list)
+
+    @pytest.mark.anyio
+    async def test_suggestions_deduplicates_names(self) -> None:
+        """Duplicate names are deduplicated, keeping the first occurrence."""
+        cat_id = uuid.uuid4()
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        result = MagicMock()
+        result.all.return_value = [
+            ("חלב", cat_id),
+            ("חלב", None),  # duplicate name, different category
+            ("חלב שוקו", cat_id),
+        ]
+        mock_session.execute.return_value = result
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/list/suggestions",
+                params={"q": "חלב"},
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["suggestions"]) == 2
+        names = [s["name"] for s in data["suggestions"]]
+        assert names == ["חלב", "חלב שוקו"]

@@ -197,3 +197,17 @@
   - Traps: Don't use optimistic state updates on the data model when items move between sections (active↔completed) — re-fetching is more reliable since the server recalculates groupings and refresh timestamps
   - Helpful context: Transitions use Tailwind's transition-all duration-300; scale-110 on check gives Apple-like "pop" effect; circle button has aria-label in Hebrew for accessibility ("הפעל מחדש" / "סמן כהושלם")
 ---
+
+## Iteration 14 — US-014: Shopping list UI — add item input with autocomplete
+- What was done: Created AddItemInput.tsx with FAB (⊕) that opens inline text input with Hebrew autocomplete from product history. Added backend endpoint GET /api/v1/list/suggestions?q= that returns distinct item names matching the query, ordered by most recently used, deduped, limited to 10 results. AddItemInput calls POST /api/v1/list/items on submit (Enter key or green + button), supports selecting from autocomplete dropdown (which passes category_id for accurate re-categorization). Added green dot badge on ListItem.tsx for auto-refreshed items (source === "auto_refresh"). Updated ListPage.tsx to call POST /api/v1/list/refresh on mount (once per component lifecycle) before fetching the list, and integrated AddItemInput with onItemAdded callback that re-fetches the list. 4 new tests: suggestions with matches, empty query, deduplication, auth protection. Total: 143 tests passing.
+- Files affected:
+  - backend/app/api/v1/list.py (updated) — added SuggestionItem/SuggestionsResponse schemas, GET /suggestions endpoint with ilike search and Python-side deduplication
+  - backend/tests/test_list.py (updated) — 4 new tests for suggestions endpoint
+  - frontend/src/components/AddItemInput.tsx (new) — FAB button, inline text input, debounced autocomplete (200ms), suggestion dropdown, submit via Enter or button
+  - frontend/src/components/ListItem.tsx (updated) — green dot badge for source === "auto_refresh"
+  - frontend/src/pages/ListPage.tsx (updated) — POST /api/v1/list/refresh on mount, integrated AddItemInput with onItemAdded
+- Learnings for next cycles:
+  - Patterns: Use useRef(false) for one-time-per-mount effects (refreshedRef); debounce autocomplete with clearTimeout/setTimeout pattern in onChange; pass category_id from suggestions to avoid re-categorization on known items
+  - Traps: Don't import `distinct` from sqlalchemy when deduplicating in Python — unused imports cause linting issues; FAB positioning with `fixed bottom-24 left-1/2 -translate-x-1/2` works for mobile but needs `sm:absolute` for phone-frame desktop layout
+  - Helpful context: Suggestions endpoint uses ilike for case-insensitive contains match; AddItemInput keeps input open after submit for adding multiple items; auto-refresh badge uses `h-2 w-2 rounded-full bg-green-400` for a subtle green dot
+---

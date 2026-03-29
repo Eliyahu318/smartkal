@@ -8,6 +8,7 @@ interface ListItemProps {
 
 export function ListItem({ item, onToggle }: ListItemProps) {
   const isCompleted = item.status === "completed";
+  const isAutoRefreshed = item.source === "auto_refresh";
   // Local animation state: when user taps, we animate immediately (optimistic)
   const [animating, setAnimating] = useState(false);
 
@@ -55,7 +56,13 @@ export function ListItem({ item, onToggle }: ListItemProps) {
       </button>
 
       {/* Item content */}
-      <div className="min-w-0 flex-1">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {isAutoRefreshed && !isCompleted && (
+          <span
+            className="inline-block h-2 w-2 shrink-0 rounded-full bg-green-400"
+            title="רוענן אוטומטית"
+          />
+        )}
         <span
           className={`text-[15px] leading-tight transition-all duration-300 ${
             showChecked ? "text-gray-400 line-through" : "text-gray-900"

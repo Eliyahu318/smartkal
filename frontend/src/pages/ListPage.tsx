@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import api from "../api/client";
+import { AddItemInput } from "../components/AddItemInput";
 import { ShoppingList } from "../components/ShoppingList";
 import type { ListItemData, ListResponse } from "../components/ShoppingList";
 
@@ -7,6 +8,7 @@ export function ListPage() {
   const [data, setData] = useState<ListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const refreshedRef = useRef(false);
 
   const fetchList = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -25,7 +27,23 @@ export function ListPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchList(controller.signal);
+
+    async function init() {
+      // Call refresh on app open (once per mount)
+      if (!refreshedRef.current) {
+        refreshedRef.current = true;
+        try {
+          await api.post("/api/v1/list/refresh", null, {
+            signal: controller.signal,
+          });
+        } catch {
+          // Refresh is best-effort — don't block list loading
+        }
+      }
+      await fetchList(controller.signal);
+    }
+
+    init();
     return () => controller.abort();
   }, [fetchList]);
 
@@ -43,12 +61,19 @@ export function ListPage() {
     }
   }, [fetchList]);
 
+  const handleItemAdded = useCallback(async () => {
+    await fetchList();
+  }, [fetchList]);
+
   return (
     <div className="pt-14">
       {/* Header */}
       <div className="px-5 pb-3">
         <h1 className="text-2xl font-bold">רשימת קניות</h1>
       </div>
+
+      {/* Add item input */}
+      <AddItemInput onItemAdded={handleItemAdded} />
 
       {/* Loading */}
       {loading && (
