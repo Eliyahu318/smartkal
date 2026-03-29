@@ -275,12 +275,12 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a developer, I want a service that sends receipt text to Claude Sonnet and returns structured product data.
 
 **Acceptance Criteria:**
-- [ ] FIRST: Search web for current Anthropic Claude API messages endpoint docs and confirm model name + request format
-- [ ] `backend/app/services/receipt_parser.py` — Claude Sonnet parsing with structured prompt
-- [ ] JSON validation of Claude response
-- [ ] Retry on failure (max 2 retries)
-- [ ] Tests: mocked Claude responses — valid JSON, invalid JSON, empty receipt
-- [ ] Typecheck passes
+- [x] FIRST: Search web for current Anthropic Claude API messages endpoint docs and confirm model name + request format
+- [x] `backend/app/services/receipt_parser.py` — Claude Sonnet parsing with structured prompt
+- [x] JSON validation of Claude response
+- [x] Retry on failure (max 2 retries)
+- [x] Tests: mocked Claude responses — valid JSON, invalid JSON, empty receipt
+- [x] Typecheck passes
 
 ---
 

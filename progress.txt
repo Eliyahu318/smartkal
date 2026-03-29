@@ -249,3 +249,14 @@
   - Traps: PyMuPDF is fully untyped — all calls need `type: ignore[no-untyped-call]` for mypy strict; helv font in test PDFs doesn't render Hebrew glyphs so can't test real Hebrew extraction without a real Hebrew PDF; RTL text from PyMuPDF may need bidi algorithm for display but for AI parsing the raw extraction is sufficient
   - Helpful context: PyMuPDF 1.27.2.2 installed in smart-shopping conda env; 165 total tests pass (22 new + 143 existing); Hebrew Unicode range \u0590-\u05FF plus presentation forms \uFB1D-\uFB4F; receipt-allowed regex preserves ₪ currency symbol
 ---
+
+## Iteration 18 — US-018: Claude AI receipt parser service
+- What was done: Created receipt parser service using Claude Sonnet (claude-sonnet-4-20250514) with structured Hebrew prompt. Service takes raw receipt text, sends to Claude with a detailed prompt specifying expected JSON format (store_name, store_branch, receipt_date, total_amount, items array). Returns ParsedReceipt/ParsedItem dataclasses with proper Decimal handling. Includes JSON validation (_validate_and_build), markdown code fence stripping, retry logic (max 2 retries on both JSON parse errors and API errors), and proper error hierarchy (ReceiptParsingError for parse failures, ClaudeAPIError for API failures). 24 tests covering: _safe_decimal unit tests (6), _validate_and_build validation (6), valid JSON parsing with store details (1), markdown fence handling (1), invalid JSON retry exhaustion (1), invalid-then-valid retry success (1), empty/whitespace receipt (2), no API key (1), API failure with retries (1), API error then success on retry (1), prompt content verification (1), dataclass defaults (2).
+- Files affected:
+  - backend/app/services/receipt_parser.py (new) — parse_receipt async function, ParsedReceipt/ParsedItem dataclasses, _validate_and_build, _safe_decimal, RECEIPT_PARSE_PROMPT
+  - backend/tests/test_receipt_parser.py (new) — 24 tests across 8 test classes
+- Learnings for next cycles:
+  - Patterns: Use dataclasses (not Pydantic) for internal service return types — simpler and sufficient when not serializing to API responses; strip markdown ```json fences from Claude responses as it sometimes wraps JSON output; _safe_decimal with Decimal(str(value)) handles float precision issues
+  - Traps: Claude sometimes returns JSON wrapped in markdown code fences (```json ... ```) even when instructed not to — always strip these; retry loop needs `range(1, MAX_RETRIES + 2)` for 1 initial + N retries (off-by-one trap); SimpleNamespace works well for mocking Claude response objects in tests
+  - Helpful context: 189 total tests pass (24 new + 165 existing); receipt parser follows same patterns as categorizer.py (AsyncAnthropic, structlog, get_settings); prompt is in Hebrew for best results with Hebrew receipt text; MAX_TOKENS=4096 for receipt parsing (vs 100 for categorization) since receipts can have many items
+---
