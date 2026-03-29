@@ -298,3 +298,28 @@
   - Traps: Backend upload already saves everything (receipt + purchases + product matches) — "אישור ושמירה" button is just UX confirmation, not a separate save API call; showToast must be imported from Toast component for non-React error handling in upload flow
   - Helpful context: TypeScript typecheck passes; three-state view pattern (upload/uploading/results) keeps the page clean; ReceiptResults allows client-side purchase deletion (filters from local state) for items user wants to exclude before confirming
 ---
+
+## Iteration 16 — US-022: SuperGET API client and product matching
+- What was done: Created SuperGET API client service with barcode-first/name-fallback product matching, price history persistence with 24-hour dedup, retry logic, and graceful degradation on API failure. 34 tests covering all layers.
+- Files affected:
+  - backend/app/services/price_comparator.py (new) — SuperGET API client, product price lookup, PriceHistory save
+  - backend/tests/test_price_comparator.py (new) — 34 tests: unit (_safe_decimal, _parse_store_prices), async (API requests, search functions, matching priority, save to history, batch fetch)
+- Learnings for next cycles:
+  - Patterns: SuperGET API uses POST to https://api.superget.co.il with action + api_key params; response may use 'data', 'results', or 'items' keys for results array; price field may be 'price' or 'item_price'; store may be 'chain_name' or 'store_name'
+  - Traps: SuperGET website appears to be down (DNS resolution fails) as of 2026-03 — the client is built from documented API patterns but cannot be live-tested; AsyncMock with spec_set breaks db.execute awaiting — use plain AsyncMock() for mock DB sessions; db.add() with AsyncMock triggers "coroutine never awaited" warning but tests pass
+  - Helpful context: 260 total tests pass (34 new + 226 existing); mypy strict passes on all 36 source files; superget_api_key already exists in config.py Settings; SuperGETError already defined in core/errors.py; price_comparator follows same patterns as receipt_parser (dataclasses, structlog, get_settings, retry logic)
+---
+
+## Iteration 23 — US-023: Price comparison endpoints
+- What was done: Created basket comparison service and two API endpoints (compare-receipt, compare-list) that calculate total basket cost per supermarket chain using PriceHistory data, with coverage indicators and savings calculation
+- Files affected:
+  - backend/app/services/basket_comparator.py (new) — basket comparison logic: latest price per product per store via SQL subquery, aggregate totals, rank cheapest, calculate savings
+  - backend/app/api/v1/price.py (new) — two endpoints: GET /api/v1/prices/compare-receipt/{id} and GET /api/v1/prices/compare-list, with Hebrew coverage text
+  - backend/app/api/v1/__init__.py (updated) — registered price router
+  - backend/tests/test_price.py (new) — 12 tests: basket calculation (empty, no data, full coverage, partial, current store savings), receipt comparison (not found, with purchases, no matched), list comparison (with items, empty), coverage text (partial, full)
+  - PRD.md (updated) — marked US-023 complete
+- Learnings for next cycles:
+  - Patterns: Use tuple indexing (row[0], row[1]) for SQLAlchemy result rows instead of named attributes to avoid mypy union-attr issues; SQL subquery with func.max for "latest per group" pattern; response schema matches frontend PriceComparisonCard interface exactly (comparisons, total_items, matched_items, cheapest_store, cheapest_total, current_total, savings)
+  - Traps: MagicMock attributes return MagicMock objects which can't be compared with < operator — use plain tuples for DB row mocks in unit tests; list[StoreBasket] is not assignable to list[object] in mypy strict (invariance) — use the concrete type
+  - Helpful context: 272 total tests pass (12 new + 260 existing); mypy strict passes on all 38 source files; frontend PriceComparisonCard.tsx already calls GET /api/v1/prices/compare-list — this endpoint now fulfills that contract; coverage_text in Hebrew with percentage for partial matches
+---

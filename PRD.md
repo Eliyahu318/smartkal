@@ -344,12 +344,12 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want to compare my receipt or shopping list across supermarket chains to find the cheapest option.
 
 **Acceptance Criteria:**
-- [ ] Calculate basket total per chain, return ranked comparison with coverage indicator
-- [ ] `GET /api/v1/prices/compare-receipt/{id}` — compare receipt basket across chains
-- [ ] `GET /api/v1/prices/compare-list` — compare current active list across chains
-- [ ] Handle partial matches gracefully: "השוואה על 18 מתוך 23 מוצרים (78%)"
-- [ ] Tests: basket calculation, partial coverage scenarios
-- [ ] Typecheck passes
+- [x] Calculate basket total per chain, return ranked comparison with coverage indicator
+- [x] `GET /api/v1/prices/compare-receipt/{id}` — compare receipt basket across chains
+- [x] `GET /api/v1/prices/compare-list` — compare current active list across chains
+- [x] Handle partial matches gracefully: "השוואה על 18 מתוך 23 מוצרים (78%)"
+- [x] Tests: basket calculation, partial coverage scenarios
+- [x] Typecheck passes
 
 ---
 
