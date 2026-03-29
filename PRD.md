@@ -135,13 +135,13 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want a Google login button and automatic token management so that I stay authenticated.
 
 **Acceptance Criteria:**
-- [ ] `frontend/src/store/authStore.ts` — Zustand store with tokens in memory (NOT localStorage)
-- [ ] `frontend/src/pages/OnboardingPage.tsx` with Google Sign-In button
-- [ ] `frontend/src/api/client.ts` — Axios instance with JWT interceptor and auto-refresh on 401
-- [ ] Error interceptor maps error codes to Hebrew toast messages
-- [ ] Unauthenticated users redirected to OnboardingPage
-- [ ] App loads, shows login page, Google button visible
-- [ ] Typecheck passes
+- [x] `frontend/src/store/authStore.ts` — Zustand store with tokens in memory (NOT localStorage)
+- [x] `frontend/src/pages/OnboardingPage.tsx` with Google Sign-In button
+- [x] `frontend/src/api/client.ts` — Axios instance with JWT interceptor and auto-refresh on 401
+- [x] Error interceptor maps error codes to Hebrew toast messages
+- [x] Unauthenticated users redirected to OnboardingPage
+- [x] App loads, shows login page, Google button visible
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

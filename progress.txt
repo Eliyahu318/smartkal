@@ -117,3 +117,19 @@
   - Traps: google-auth requires `requests` package for its transport layer (not installed automatically); patching the User model class in tests breaks SQLAlchemy's select() — instead use mock_session.add.side_effect to capture and modify the User object; jwt.encode returns Any in python-jose — need explicit `token: str` annotation for mypy strict
   - Helpful context: API routes live under app/api/v1/ with api_v1_router aggregating all sub-routers; dependency_overrides on FastAPI app is the clean way to mock DB sessions in integration tests; new users automatically get 15 Hebrew categories seeded via seed_categories_for_user
 ---
+
+## Iteration 8 — US-008: Frontend auth with Google Sign-In and Axios interceptor
+- What was done: Created full frontend auth system. Zustand auth store (authStore.ts) stores tokens in memory only (no localStorage). Axios client (api/client.ts) with request interceptor to attach Bearer token and response interceptor for auto-refresh on 401 with request coalescing. Auth bridge pattern breaks circular dependency between store and client. OnboardingPage with Google Identity Services (GIS) integration — renders Google Sign-In button via google.accounts.id.renderButton(). Toast component for Hebrew error messages mapped from backend error codes. App.tsx updated with auth routing — unauthenticated users see OnboardingPage, authenticated users see main app. Added vite-env.d.ts for Vite client types. GIS script loaded in index.html.
+- Files affected:
+  - frontend/src/api/client.ts (new) — Axios instance, JWT interceptor, 401 auto-refresh, error code → Hebrew mapping, auth bridge
+  - frontend/src/store/authStore.ts (new) — Zustand store with loginWithGoogle, refreshTokens, fetchMe, logout, initialize
+  - frontend/src/components/Toast.tsx (new) — Toast notification system with showToast() for non-React code
+  - frontend/src/pages/OnboardingPage.tsx (new) — Google Sign-In via GIS, branding, error handling
+  - frontend/src/App.tsx (updated) — Auth-gated routing with initializing spinner
+  - frontend/index.html (updated) — Added Google Identity Services script tag
+  - frontend/src/vite-env.d.ts (new) — Vite client type reference for import.meta.env
+- Learnings for next cycles:
+  - Patterns: Use registerAuthBridge() pattern to break circular dependency between Axios client and Zustand store; Google Identity Services (GIS) uses google.accounts.id.initialize() + renderButton() — no redirect flow needed; coalesce concurrent 401 refresh attempts with a shared promise
+  - Traps: Vite projects need vite-env.d.ts (or reference in tsconfig) for import.meta.env types; GIS script loads async so need polling/interval to detect when window.google is available; don't attempt token refresh on /auth/ endpoints to avoid infinite loops
+  - Helpful context: VITE_GOOGLE_CLIENT_ID env var controls Google Sign-In; tokens are memory-only so page reload = logout (by design for security); the toast system exposes showToast() for imperative use from interceptors
+---
