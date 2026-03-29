@@ -133,3 +133,17 @@
   - Traps: Vite projects need vite-env.d.ts (or reference in tsconfig) for import.meta.env types; GIS script loads async so need polling/interval to detect when window.google is available; don't attempt token refresh on /auth/ endpoints to avoid infinite loops
   - Helpful context: VITE_GOOGLE_CLIENT_ID env var controls Google Sign-In; tokens are memory-only so page reload = logout (by design for security); the toast system exposes showToast() for imperative use from interceptors
 ---
+
+## Iteration 9 — US-009: Shopping list CRUD backend
+- What was done: Created shopping list CRUD API with 4 endpoints: GET /api/v1/list (items grouped by category), POST /api/v1/list/items (add with optional auto-categorization), PUT /api/v1/list/items/{id} (update name/quantity/note/category), DELETE /api/v1/list/items/{id} (permanent remove). Created auto-categorization service using Claude API (AsyncAnthropic) that matches Hebrew product names to user's categories. All endpoints are user-scoped via get_current_user dependency. 23 tests covering CRUD, user isolation, auto-categorization (mocked), auth protection, and edge cases.
+- Files affected:
+  - backend/app/services/__init__.py (new)
+  - backend/app/services/categorizer.py (new) — Claude API auto-categorization with graceful fallback
+  - backend/app/api/v1/list.py (new) — 4 CRUD endpoints with Pydantic schemas, category grouping
+  - backend/app/api/v1/__init__.py (updated) — added list_router
+  - backend/tests/test_list.py (new) — 23 tests across 7 test classes
+- Learnings for next cycles:
+  - Patterns: Override get_current_user dependency directly in tests to avoid JWT complexity for non-auth tests; use side_effect on mock_session.execute to return different results for sequential queries; Anthropic SDK content blocks are a union type — need type: ignore[union-attr] for .text access
+  - Traps: mypy strict flags accessing .text on Anthropic response content blocks since it's a union of TextBlock and many other types; cat_map.get() with UUID | None key needs `is not None` guard not truthiness check
+  - Helpful context: List items grouped by category for frontend rendering; auto-categorization is best-effort (returns None on any failure — no error thrown to user); the categorizer uses AsyncAnthropic client with claude-sonnet-4-20250514 model
+---

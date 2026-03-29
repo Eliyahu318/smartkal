@@ -150,15 +150,15 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want to add, view, update, and delete items in my shopping list so that I can manage what I need to buy.
 
 **Acceptance Criteria:**
-- [ ] `backend/app/api/v1/list.py` with routes
-- [ ] `GET /api/v1/list` — returns all items grouped by category (active and completed)
-- [ ] `POST /api/v1/list/items` — add item with name, optional quantity, optional category
-- [ ] `PUT /api/v1/list/items/{id}` — update name, quantity, note, category
-- [ ] `DELETE /api/v1/list/items/{id}` — permanent remove
-- [ ] Auto-categorization: if category not specified, use Claude API to categorize Hebrew product name
-- [ ] All endpoints are user-scoped (user_id from JWT)
-- [ ] Tests: CRUD operations, user isolation, auto-categorization (mocked)
-- [ ] Typecheck passes
+- [x] `backend/app/api/v1/list.py` with routes
+- [x] `GET /api/v1/list` — returns all items grouped by category (active and completed)
+- [x] `POST /api/v1/list/items` — add item with name, optional quantity, optional category
+- [x] `PUT /api/v1/list/items/{id}` — update name, quantity, note, category
+- [x] `DELETE /api/v1/list/items/{id}` — permanent remove
+- [x] Auto-categorization: if category not specified, use Claude API to categorize Hebrew product name
+- [x] All endpoints are user-scoped (user_id from JWT)
+- [x] Tests: CRUD operations, user isolation, auto-categorization (mocked)
+- [x] Typecheck passes
 
 ---
 
