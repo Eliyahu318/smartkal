@@ -288,13 +288,13 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want to upload receipt PDFs and view my receipt history so that my purchases are tracked.
 
 **Acceptance Criteria:**
-- [ ] `POST /api/v1/receipts/upload` — accept PDF, validate (magic bytes, max 10MB), extract text, parse with Claude, return parsed result
-- [ ] `GET /api/v1/receipts/{id}` — full receipt with parsed items
-- [ ] `GET /api/v1/receipts` — paginated list of all receipts
-- [ ] Save Receipt + Purchase records to DB, update PriceHistory
-- [ ] All endpoints user-scoped
-- [ ] Tests: file validation, upload flow (mocked Claude), user isolation
-- [ ] Typecheck passes
+- [x] `POST /api/v1/receipts/upload` — accept PDF, validate (magic bytes, max 10MB), extract text, parse with Claude, return parsed result
+- [x] `GET /api/v1/receipts/{id}` — full receipt with parsed items
+- [x] `GET /api/v1/receipts` — paginated list of all receipts
+- [x] Save Receipt + Purchase records to DB, update PriceHistory
+- [x] All endpoints user-scoped
+- [x] Tests: file validation, upload flow (mocked Claude), user isolation
+- [x] Typecheck passes
 
 ---
 

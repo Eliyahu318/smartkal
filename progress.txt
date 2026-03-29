@@ -260,3 +260,15 @@
   - Traps: Claude sometimes returns JSON wrapped in markdown code fences (```json ... ```) even when instructed not to — always strip these; retry loop needs `range(1, MAX_RETRIES + 2)` for 1 initial + N retries (off-by-one trap); SimpleNamespace works well for mocking Claude response objects in tests
   - Helpful context: 189 total tests pass (24 new + 165 existing); receipt parser follows same patterns as categorizer.py (AsyncAnthropic, structlog, get_settings); prompt is in Hebrew for best results with Hebrew receipt text; MAX_TOKENS=4096 for receipt parsing (vs 100 for categorization) since receipts can have many items
 ---
+
+## Iteration 19 — US-019: Receipt API endpoints
+- What was done: Created receipt API with 3 endpoints: POST /api/v1/receipts/upload (accept PDF, validate magic bytes + 10MB limit, extract text via PyMuPDF, parse with Claude, save Receipt + Purchase records, return parsed result), GET /api/v1/receipts/{id} (full receipt with purchases via selectinload), GET /api/v1/receipts (paginated list with count + offset). All endpoints user-scoped via get_current_user. PriceHistory update deferred to US-020/US-022 when product matching is implemented. 19 tests covering: file validation (non-PDF, oversized), upload flow with mocked extraction+parsing (success, invalid date), get receipt (success, not found, user isolation), list receipts (empty, with data, pagination), auth protection for all 3 endpoints, _validate_pdf unit tests (valid, non-PDF, oversized, empty), _build_purchases_from_parsed unit tests (correct count, empty items).
+- Files affected:
+  - backend/app/api/v1/receipt.py (new) — 3 endpoints, 6 Pydantic schemas, PDF validation helper, purchase builder helper
+  - backend/app/api/v1/__init__.py (updated) — added receipt_router
+  - backend/tests/test_receipt.py (new) — 19 tests across 7 test classes
+- Learnings for next cycles:
+  - Patterns: Use selectinload(Receipt.purchases) for eager loading related purchases in single-receipt endpoint; track objects added to mock session with side_effect to assign fake IDs/timestamps for response serialization; UploadFile from FastAPI handles file reading with await file.read()
+  - Traps: Receipt.status is a string column, not enum — set to "parsed" after successful parsing (default "pending"); parsed.receipt_date is a string from Claude that needs date.fromisoformat() conversion with try/except fallback; PriceHistory update requires product matching (US-020) so it's deferred — the Receipt+Purchase records are saved without product_id links
+  - Helpful context: 208 total tests pass (19 new + 189 existing); mypy strict passes; receipt router at /api/v1/receipts; PDF validation checks %PDF magic bytes prefix; max file size 10MB; pagination uses count query + offset/limit pattern
+---
