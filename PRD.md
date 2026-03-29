@@ -196,11 +196,11 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want to see my shopping list grouped by category with collapsible sections so that items are organized.
 
 **Acceptance Criteria:**
-- [ ] `ShoppingList.tsx` — renders items grouped by category
-- [ ] `CategorySection.tsx` — collapsible section with bold header and chevron icon
-- [ ] `ListItem.tsx` — circle indicator (○ active, ● completed), product name, optional quantity
-- [ ] Items fetched from `GET /api/v1/list` on mount
-- [ ] Typecheck passes
+- [x] `ShoppingList.tsx` — renders items grouped by category
+- [x] `CategorySection.tsx` — collapsible section with bold header and chevron icon
+- [x] `ListItem.tsx` — circle indicator (○ active, ● completed), product name, optional quantity
+- [x] Items fetched from `GET /api/v1/list` on mount
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

@@ -171,3 +171,16 @@
   - Traps: The "אחר" category might not exist if user manually deleted it before this code was in place — always use get_or_create pattern; reorder endpoint should validate all IDs belong to the user before updating any display_order values
   - Helpful context: Category router registered at /api/v1/categories; 139 total tests pass (25 new + 114 existing); mypy strict passes; categories are user-scoped with UniqueConstraint on (user_id, name)
 ---
+
+## Iteration 12 — US-012: Shopping list UI — basic rendering with categories
+- What was done: Created three frontend components for the shopping list UI. ShoppingList.tsx defines shared TypeScript types (ListItemData, CategoryInfo, CategoryGroup, ListResponse) and renders items split into active groups by category plus a collapsible completed section. CategorySection.tsx renders a collapsible category header with chevron icon (lucide-react ChevronDown), bold category name, item count, and child ListItem components. ListItem.tsx renders circle indicators (empty circle for active, filled green with checkmark for completed), product name with line-through styling for completed items, and optional quantity badge. Updated ListPage.tsx to fetch from GET /api/v1/list on mount with loading spinner, error state, and data rendering.
+- Files affected:
+  - frontend/src/components/ShoppingList.tsx (new) — types + main list component with active/completed split
+  - frontend/src/components/CategorySection.tsx (new) — collapsible category with chevron toggle
+  - frontend/src/components/ListItem.tsx (new) — item row with circle indicator + quantity
+  - frontend/src/pages/ListPage.tsx (updated) — fetch on mount, loading/error states, renders ShoppingList
+- Learnings for next cycles:
+  - Patterns: Export shared types from ShoppingList.tsx so sibling components (CategorySection, ListItem) can import them; use cancelled flag in useEffect cleanup to prevent state updates on unmounted components; split active/completed items client-side from the grouped API response
+  - Traps: API returns items grouped by category with mixed statuses — need to filter active vs completed per group on the frontend; import default export from client.ts as `api` (lowercase)
+  - Helpful context: ListResponse matches backend's ListResponse schema exactly; Apple Reminders style achieved with 22px circles, 15px text, gray-400 for completed items, ChevronDown with rotate transition; CompletedSection collapsed by default with show/hide toggle in Hebrew
+---
