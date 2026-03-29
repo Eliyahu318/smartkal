@@ -48,13 +48,13 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a developer, I want a FastAPI app with health check, CORS, and structured logging so that the backend foundation is ready.
 
 **Acceptance Criteria:**
-- [ ] `backend/app/main.py` with FastAPI app, CORS middleware, lifespan hook
-- [ ] `backend/app/config.py` with Pydantic Settings (DATABASE_URL, JWT_SECRET, etc.)
-- [ ] `backend/app/core/logging.py` with structlog JSON setup
-- [ ] `GET /health` returns `{"status": "ok"}`
-- [ ] `uvicorn app.main:app` starts without errors
-- [ ] `curl localhost:8000/health` returns 200
-- [ ] Typecheck passes
+- [x] `backend/app/main.py` with FastAPI app, CORS middleware, lifespan hook
+- [x] `backend/app/config.py` with Pydantic Settings (DATABASE_URL, JWT_SECRET, etc.)
+- [x] `backend/app/core/logging.py` with structlog JSON setup
+- [x] `GET /health` returns `{"status": "ok"}`
+- [x] `uvicorn app.main:app` starts without errors
+- [x] `curl localhost:8000/health` returns 200
+- [x] Typecheck passes
 
 ---
 

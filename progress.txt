@@ -14,3 +14,19 @@
   - Traps: frontend needs tsconfig.json + at least one .tsx file for typecheck to have something to check
   - Helpful context: Python 3.x and Node available in PATH; using asyncpg 0.31, SQLAlchemy 2.0.48, FastAPI 0.135
 ---
+
+## Iteration 2 — US-002: Backend skeleton with health endpoint
+- What was done: Created FastAPI app with health check, CORS middleware, lifespan hook, Pydantic Settings config, structlog JSON logging setup
+- Files affected:
+  - backend/app/__init__.py (new)
+  - backend/app/main.py (new) — FastAPI app with create_app factory, CORS, lifespan, /health endpoint
+  - backend/app/config.py (new) — Pydantic Settings with all env vars from .env.example
+  - backend/app/core/__init__.py (new)
+  - backend/app/core/logging.py (new) — structlog setup with JSON/console renderer switch
+  - backend/tests/__init__.py (new)
+  - backend/tests/test_health.py (new) — async test using httpx ASGITransport
+- Learnings for next cycles:
+  - Patterns: Use httpx AsyncClient with ASGITransport for testing FastAPI without running a server; pytest-anyio works with the asyncio_mode="auto" config
+  - Traps: pytest and dev deps were not installed in the conda env despite requirements-dev.txt existing; need to pip install them first
+  - Helpful context: conda env is "smart-shopping"; mypy strict mode passes with --ignore-missing-imports; structlog async logging uses ainfo/adebug etc.
+---
