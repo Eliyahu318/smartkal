@@ -263,11 +263,11 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a developer, I want a utility that extracts and cleans Hebrew text from receipt PDFs so that it's ready for AI parsing.
 
 **Acceptance Criteria:**
-- [ ] FIRST: Search web for current PyMuPDF API docs and confirm usage
-- [ ] `backend/app/utils/pdf.py` — PyMuPDF text extraction with Hebrew text cleaning
-- [ ] Handles RTL text correctly
-- [ ] Tests: extraction from sample PDF, Hebrew character handling
-- [ ] Typecheck passes
+- [x] FIRST: Search web for current PyMuPDF API docs and confirm usage
+- [x] `backend/app/utils/pdf.py` — PyMuPDF text extraction with Hebrew text cleaning
+- [x] Handles RTL text correctly
+- [x] Tests: extraction from sample PDF, Hebrew character handling
+- [x] Typecheck passes
 
 ---
 

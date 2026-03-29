@@ -237,3 +237,15 @@
   - Traps: Backend endpoints for price comparison (US-022/US-023) don't exist yet — the card will remain hidden until those are implemented; ensure the PriceComparisonData interface matches whatever schema US-023 eventually produces
   - Helpful context: Card uses green-50/green-200/green-700 palette to match the app's green accent color scheme; coverage text format matches PRD spec ("השוואה על X מתוך Y מוצרים (Z%)"); PriceComparisonCard is stateless regarding list data — it fetches independently on mount
 ---
+
+## Iteration 17 — US-017: PDF text extraction utility
+- What was done: Created PDF text extraction utility using PyMuPDF 1.27.2.2. Module at app/utils/pdf.py with three functions: extract_text_from_pdf() opens PDF from bytes, iterates pages with sort=True for reading order, returns cleaned text; clean_hebrew_text() normalizes Unicode (NFC), strips control characters, removes unexpected chars, collapses whitespace; has_hebrew_content() checks for Hebrew Unicode ranges. Proper error handling via ReceiptParsingError for invalid PDF, empty PDF, and no-text (scanned image) cases. 22 tests covering extraction (single/multi page, invalid PDF, empty PDF, max_pages limit, empty bytes), cleaning (Hebrew+digits, control chars, whitespace collapse, newlines, line stripping, Unicode normalization, receipt symbols, mixed Hebrew-Latin), and Hebrew detection (Hebrew, Latin, mixed, empty, digits, presentation forms).
+- Files affected:
+  - backend/app/utils/__init__.py (new) — empty package init
+  - backend/app/utils/pdf.py (new) — extract_text_from_pdf, clean_hebrew_text, has_hebrew_content
+  - backend/tests/test_pdf.py (new) — 22 tests across 3 test classes
+- Learnings for next cycles:
+  - Patterns: pymupdf.open(stream=bytes, filetype="pdf") for in-memory PDF processing; page.get_text("text", sort=True) reorders blocks top-left to bottom-right which helps with receipt column layouts; Unicode NFC normalization handles composed vs decomposed Hebrew with nikud
+  - Traps: PyMuPDF is fully untyped — all calls need `type: ignore[no-untyped-call]` for mypy strict; helv font in test PDFs doesn't render Hebrew glyphs so can't test real Hebrew extraction without a real Hebrew PDF; RTL text from PyMuPDF may need bidi algorithm for display but for AI parsing the raw extraction is sufficient
+  - Helpful context: PyMuPDF 1.27.2.2 installed in smart-shopping conda env; 165 total tests pass (22 new + 143 existing); Hebrew Unicode range \u0590-\u05FF plus presentation forms \uFB1D-\uFB4F; receipt-allowed regex preserves ₪ currency symbol
+---
