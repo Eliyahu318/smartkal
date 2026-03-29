@@ -120,14 +120,14 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want to log in with Google and receive JWT tokens so that my data is secure and personal.
 
 **Acceptance Criteria:**
-- [ ] FIRST: Search web for current Google OAuth token verification docs and confirm endpoint/library
-- [ ] `backend/app/core/security.py` — verify Google token, create/decode JWT pair
-- [ ] `backend/app/dependencies.py` — get_current_user dependency
-- [ ] `POST /api/v1/auth/google` — receives id_token, verifies with Google, creates user, returns JWT pair
-- [ ] `POST /api/v1/auth/refresh` — refresh token → new access token
-- [ ] `GET /api/v1/auth/me` — returns current user (protected)
-- [ ] Tests: mock Google verification, JWT lifecycle, protected endpoint returns 401 without token
-- [ ] Typecheck passes
+- [x] FIRST: Search web for current Google OAuth token verification docs and confirm endpoint/library
+- [x] `backend/app/core/security.py` — verify Google token, create/decode JWT pair
+- [x] `backend/app/dependencies.py` — get_current_user dependency
+- [x] `POST /api/v1/auth/google` — receives id_token, verifies with Google, creates user, returns JWT pair
+- [x] `POST /api/v1/auth/refresh` — refresh token → new access token
+- [x] `GET /api/v1/auth/me` — returns current user (protected)
+- [x] Tests: mock Google verification, JWT lifecycle, protected endpoint returns 401 without token
+- [x] Typecheck passes
 
 ---
 

@@ -5,6 +5,7 @@ import structlog
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.v1 import api_v1_router
 from app.config import get_settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import setup_logging
@@ -46,6 +47,9 @@ def create_app() -> FastAPI:
 
     # Exception handlers
     register_exception_handlers(app)
+
+    # API routes
+    app.include_router(api_v1_router)
 
     @app.get("/health")
     async def health_check() -> dict[str, str]:

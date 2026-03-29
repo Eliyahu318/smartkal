@@ -100,3 +100,20 @@
   - Traps: FastAPI's add_exception_handler(Exception, ...) does NOT catch exceptions that bubble through BaseHTTPMiddleware's call_next — must catch unhandled exceptions directly in the middleware dispatch method; mypy type: ignore comments may become unused across versions — use [arg-type, unused-ignore] combo
   - Helpful context: ClaudeAPIError and SuperGETError inherit from ExternalServiceError (all 502); ReceiptParsingError is 422 not 502 since it's a client-side parsing issue; structlog contextvars binding in middleware ensures request_id appears in all log entries automatically
 ---
+
+## Iteration 7 — US-007: Google OAuth + JWT authentication backend
+- What was done: Implemented full Google OAuth + JWT authentication system. Created security module with Google id_token verification (using google-auth library's verify_oauth2_token), JWT access token (15min) and refresh token (30d) creation/decoding with type validation. Created get_current_user FastAPI dependency with HTTPBearer scheme. Built 3 auth endpoints: POST /api/v1/auth/google (login/register with Google, seeds categories for new users), POST /api/v1/auth/refresh (exchange refresh for new pair), GET /api/v1/auth/me (protected, returns user profile). Set up API router structure (app/api/v1/). 25 tests covering JWT lifecycle (10), Google verification (5), and endpoint integration (10).
+- Files affected:
+  - backend/requirements.txt (updated) — added google-auth>=2.38.0, requests>=2.32.0
+  - backend/app/core/security.py (new) — verify_google_token, create_access_token, create_refresh_token, create_token_pair, decode_token
+  - backend/app/dependencies.py (new) — get_current_user with HTTPBearer + JWT validation + DB lookup
+  - backend/app/api/__init__.py (new)
+  - backend/app/api/v1/__init__.py (new) — api_v1_router with /api/v1 prefix
+  - backend/app/api/v1/auth.py (new) — GoogleLoginRequest/TokenResponse/RefreshRequest/UserResponse schemas + 3 endpoints
+  - backend/app/main.py (updated) — added api_v1_router include
+  - backend/tests/test_auth.py (new) — 25 tests: JWT lifecycle, Google token verification, auth endpoint integration
+- Learnings for next cycles:
+  - Patterns: google-auth library's verify_oauth2_token is the canonical way to verify Google id_tokens; use HTTPBearer(auto_error=False) to handle missing auth header gracefully in dependency; db.flush() after add() gets the DB-assigned UUID without committing
+  - Traps: google-auth requires `requests` package for its transport layer (not installed automatically); patching the User model class in tests breaks SQLAlchemy's select() — instead use mock_session.add.side_effect to capture and modify the User object; jwt.encode returns Any in python-jose — need explicit `token: str` annotation for mypy strict
+  - Helpful context: API routes live under app/api/v1/ with api_v1_router aggregating all sub-routers; dependency_overrides on FastAPI app is the clean way to mock DB sessions in integration tests; new users automatically get 15 Hebrew categories seeded via seed_categories_for_user
+---

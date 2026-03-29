@@ -12,3 +12,5 @@ anthropic>=0.42.0
 pymupdf>=1.25.0
 rapidfuzz>=3.11.0
 structlog>=24.4.0
+google-auth>=2.38.0
+requests>=2.32.0
