@@ -156,12 +156,32 @@ async def match_purchase_to_product(
     return product, "new"
 
 
+async def _get_default_category_id(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+) -> uuid.UUID | None:
+    """Get the 'אחר' category ID for the user, or None."""
+    from app.models.category import Category
+
+    result = await db.execute(
+        select(Category.id).where(
+            Category.user_id == user_id,
+            Category.name == "אחר",
+        ).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def _complete_matching_list_items(
     db: AsyncSession,
     user_id: uuid.UUID,
     product: Product,
+    purchase_quantity: float = 1.0,
 ) -> list[ListItem]:
     """Find active list items matching the product and mark them as completed.
+
+    If no matching list item exists, creates a new one as completed
+    so the app learns purchase patterns for future refresh predictions.
 
     Returns list of completed items.
     """
@@ -196,6 +216,37 @@ async def _complete_matching_list_items(
                 matching_items.append(item)
 
     now = datetime.now(timezone.utc)
+
+    # If no existing list item found, check if a completed one already exists
+    # (from a previous receipt). If not, create a new one.
+    if not matching_items:
+        result = await db.execute(
+            select(ListItem).where(
+                ListItem.user_id == user_id,
+                ListItem.product_id == product.id,
+            ).limit(1)
+        )
+        existing_completed = result.scalar_one_or_none()
+
+        if existing_completed is None:
+            default_category_id = await _get_default_category_id(db, user_id)
+            new_item = ListItem(
+                user_id=user_id,
+                product_id=product.id,
+                category_id=product.category_id or default_category_id,
+                name=product.name,
+                quantity=str(purchase_quantity) if purchase_quantity != 1.0 else None,
+                status=ListItemStatus.COMPLETED.value,
+                source=ListItemSource.RECEIPT.value,
+                last_completed_at=now,
+            )
+            db.add(new_item)
+            matching_items.append(new_item)
+        else:
+            # Update the existing completed item's timestamp
+            existing_completed.last_completed_at = now
+            matching_items.append(existing_completed)
+
     completed_items: list[ListItem] = []
 
     for item in matching_items:
@@ -262,8 +313,10 @@ async def match_receipt_purchases(
         if purchase.barcode and not product.barcode:
             product.barcode = purchase.barcode
 
-        # Complete matching list items
-        completed = await _complete_matching_list_items(db, user_id, product)
+        # Complete matching list items (or create new ones)
+        completed = await _complete_matching_list_items(
+            db, user_id, product, purchase.quantity or 1.0,
+        )
         counts["completed_items"] += len(completed)
 
     await db.flush()
