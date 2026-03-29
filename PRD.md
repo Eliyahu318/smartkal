@@ -317,13 +317,13 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want to upload a receipt and see parsed items with price comparison — the wow moment.
 
 **Acceptance Criteria:**
-- [ ] `ReceiptsPage.tsx` — upload zone + receipt history list by month
-- [ ] `ReceiptUpload.tsx` — drag-drop or tap to select PDF
-- [ ] `ReceiptResults.tsx` — price comparison card (savings in big green), category breakdown, parsed items list with edit/delete per item, warning for unmatched items
-- [ ] "אישור ושמירה" button: saves to inventory, merges with list, navigates to list tab
-- [ ] Loading state with skeleton while parsing
-- [ ] Upload PDF → see parsed items + price comparison + category breakdown
-- [ ] Typecheck passes
+- [x] `ReceiptsPage.tsx` — upload zone + receipt history list by month
+- [x] `ReceiptUpload.tsx` — drag-drop or tap to select PDF
+- [x] `ReceiptResults.tsx` — price comparison card (savings in big green), category breakdown, parsed items list with edit/delete per item, warning for unmatched items
+- [x] "אישור ושמירה" button: saves to inventory, merges with list, navigates to list tab
+- [x] Loading state with skeleton while parsing
+- [x] Upload PDF → see parsed items + price comparison + category breakdown
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

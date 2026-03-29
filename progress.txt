@@ -272,3 +272,29 @@
   - Traps: Receipt.status is a string column, not enum — set to "parsed" after successful parsing (default "pending"); parsed.receipt_date is a string from Claude that needs date.fromisoformat() conversion with try/except fallback; PriceHistory update requires product matching (US-020) so it's deferred — the Receipt+Purchase records are saved without product_id links
   - Helpful context: 208 total tests pass (19 new + 189 existing); mypy strict passes; receipt router at /api/v1/receipts; PDF validation checks %PDF magic bytes prefix; max file size 10MB; pagination uses count query + offset/limit pattern
 ---
+
+## Iteration 20 — US-020: Product matching from receipts
+- What was done: Created product_matcher.py service with rapidfuzz Hebrew fuzzy matching. Match priority chain: barcode exact → normalized name exact → fuzzy match (threshold 0.85) → create new product. Added normalize_hebrew_name() that strips nikud, normalizes Unicode NFC, lowercases Latin chars, removes punctuation, and collapses whitespace. When purchases match list items (by product_id or fuzzy name), items are marked as completed with source="receipt" and refresh frequencies recalculated. Added PATCH /api/v1/list/items/{id}/upgrade endpoint to upgrade generic names to precise receipt names (updates both ListItem and linked Product). Integrated matching into receipt upload flow — match_receipt_purchases is called after purchases are saved, returning match_counts in the upload response. Updated existing receipt upload tests to mock the matcher. 18 new tests covering: normalization (6), barcode match (2), exact name match (1), fuzzy match above/below threshold (2), new product creation (1), upgrade endpoint (4), receipt matching integration (2).
+- Files affected:
+  - backend/app/services/product_matcher.py (new) — normalize_hebrew_name, match_purchase_to_product, match_receipt_purchases, _complete_matching_list_items
+  - backend/app/api/v1/list.py (updated) — added UpgradeItemRequest schema, PATCH /items/{id}/upgrade endpoint
+  - backend/app/api/v1/receipt.py (updated) — integrated match_receipt_purchases into upload flow, added MatchCountsResponse schema
+  - backend/tests/test_product_matcher.py (new) — 18 tests across 8 test classes
+  - backend/tests/test_receipt.py (updated) — added mock for match_receipt_purchases in upload tests
+- Learnings for next cycles:
+  - Patterns: rapidfuzz.fuzz.token_sort_ratio works well for Hebrew product names where word order may differ; normalize names by stripping nikud (\u0591-\u05BD range) before comparison; mock async service calls at the import point in the module being tested (e.g., patch("app.api.v1.receipt.match_receipt_purchases"))
+  - Traps: When integrating a new async service into an existing flow with mocked tests, existing tests break because the mock session doesn't support the new queries — must mock the new service in existing tests; receipt.purchases needs to be explicitly set before calling match_receipt_purchases since purchases were just created individually
+  - Helpful context: 226 total tests pass (18 new + 208 existing); mypy strict passes on all 35 source files; FUZZY_THRESHOLD = 85.0; upgrade endpoint updates both ListItem.name and Product.name+normalized_name; match_counts response includes barcode/exact_name/fuzzy/new/completed_items counts
+---
+
+## Iteration 21 — US-021: Receipt upload UI with parsed results
+- What was done: Created full receipt upload UI with three components. ReceiptUpload.tsx uses react-dropzone for drag-drop/tap PDF selection (10MB limit, PDF-only validation, drag-active/rejected states with Hebrew messages). ReceiptResults.tsx displays parsed receipt results — receipt header card (store name, branch, date, total in green), match summary card (completed items count, barcode/exact/fuzzy breakdown), orange warning for unmatched items, collapsible category breakdown (matched vs new products), parsed items list with per-item delete and match status indicators (green check for matched, orange triangle for unmatched), and "אישור ושמירה" green button that navigates to list tab. ReceiptsPage.tsx orchestrates the full flow with three views (upload/uploading/results): upload zone with react-dropzone, loading skeleton with spinner while Claude parses, results display, and receipt history list grouped by Hebrew month labels. FormData upload with multipart/form-data header for the PDF.
+- Files affected:
+  - frontend/src/components/ReceiptUpload.tsx (new) — react-dropzone drag-drop/tap upload with PDF validation
+  - frontend/src/components/ReceiptResults.tsx (new) — parsed items display, match summary, category breakdown, save button
+  - frontend/src/pages/ReceiptsPage.tsx (updated) — full receipt flow: upload → skeleton → results, receipt history by month
+- Learnings for next cycles:
+  - Patterns: react-dropzone accept prop uses MIME type map { "application/pdf": [".pdf"] }; FormData + "Content-Type": "multipart/form-data" header for file upload via Axios; groupByMonth helper with toLocaleDateString("he-IL", { month: "long", year: "numeric" }) for Hebrew month labels
+  - Traps: Backend upload already saves everything (receipt + purchases + product matches) — "אישור ושמירה" button is just UX confirmation, not a separate save API call; showToast must be imported from Toast component for non-React error handling in upload flow
+  - Helpful context: TypeScript typecheck passes; three-state view pattern (upload/uploading/results) keeps the page clean; ReceiptResults allows client-side purchase deletion (filters from local state) for items user wants to exclude before confirming
+---
