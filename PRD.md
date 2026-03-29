@@ -62,15 +62,15 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want an RTL Hebrew app shell with bottom navigation so that I can navigate between tabs.
 
 **Acceptance Criteria:**
-- [ ] `frontend/src/main.tsx` and `App.tsx` with React Router
-- [ ] Tailwind configured with RTL support
-- [ ] `AppShell.tsx` with phone frame (430px max-width on desktop, full screen on mobile)
-- [ ] `BottomNav.tsx` with 3 tabs: רשימה, קבלות, עוד
-- [ ] Placeholder pages: `ListPage`, `ReceiptsPage`, `MorePage`
-- [ ] `index.html` has `dir="rtl"` and `lang="he"`
-- [ ] `npm run dev` loads app in browser with RTL layout and bottom nav
-- [ ] Typecheck passes
-- [ ] Verify changes work in browser
+- [x] `frontend/src/main.tsx` and `App.tsx` with React Router
+- [x] Tailwind configured with RTL support
+- [x] `AppShell.tsx` with phone frame (430px max-width on desktop, full screen on mobile)
+- [x] `BottomNav.tsx` with 3 tabs: רשימה, קבלות, עוד
+- [x] Placeholder pages: `ListPage`, `ReceiptsPage`, `MorePage`
+- [x] `index.html` has `dir="rtl"` and `lang="he"`
+- [x] `npm run dev` loads app in browser with RTL layout and bottom nav
+- [x] Typecheck passes
+- [x] Verify changes work in browser
 
 ---
 

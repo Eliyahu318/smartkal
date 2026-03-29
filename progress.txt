@@ -30,3 +30,24 @@
   - Traps: pytest and dev deps were not installed in the conda env despite requirements-dev.txt existing; need to pip install them first
   - Helpful context: conda env is "smart-shopping"; mypy strict mode passes with --ignore-missing-imports; structlog async logging uses ainfo/adebug etc.
 ---
+
+## Iteration 3 — US-003: Frontend skeleton with RTL and phone frame
+- What was done: Created full frontend app shell — Vite config, Tailwind config, PostCSS config, index.html with dir="rtl" lang="he", React Router setup in main.tsx/App.tsx, AppShell with phone frame (430px max-width centered with rounded corners on desktop, full screen on mobile), BottomNav with 3 tabs (רשימה, קבלות, עוד) using lucide-react icons, and 3 placeholder pages.
+- Files affected:
+  - frontend/index.html (new) — RTL Hebrew entry point
+  - frontend/vite.config.ts (new) — Vite + React plugin + path alias
+  - frontend/tailwind.config.ts (new) — Tailwind with custom phone max-width and Hebrew font stack
+  - frontend/postcss.config.js (new) — PostCSS with Tailwind + autoprefixer
+  - frontend/src/index.css (new) — Tailwind directives + base styles
+  - frontend/src/main.tsx (updated) — React 18 createRoot with BrowserRouter
+  - frontend/src/App.tsx (new) — Routes for /, /list, /receipts, /more
+  - frontend/src/components/AppShell.tsx (new) — Phone frame wrapper with scrollable content
+  - frontend/src/components/BottomNav.tsx (new) — 3-tab bottom navigation with active state
+  - frontend/src/pages/ListPage.tsx (new) — Placeholder list page
+  - frontend/src/pages/ReceiptsPage.tsx (new) — Placeholder receipts page
+  - frontend/src/pages/MorePage.tsx (new) — Placeholder more page
+- Learnings for next cycles:
+  - Patterns: Vite 6.x works well with @vitejs/plugin-react 4.x; tsconfig path aliases need matching vite resolve.alias; Tailwind 3.4 with content glob picks up all tsx files
+  - Traps: index.html must be at frontend root (not in public/) for Vite; pb-safe utility useful for iPhone bottom safe area but needs custom definition or env support
+  - Helpful context: Phone frame uses sm:max-w-phone (430px custom) + sm:rounded-3xl + shadow-2xl for Apple-like appearance; BottomNav uses absolute positioning at bottom with backdrop-blur; lucide-react provides ClipboardList, Receipt, MoreHorizontal icons
+---
