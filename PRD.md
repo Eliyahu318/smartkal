@@ -92,13 +92,13 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a developer, I want Alembic migrations and default Hebrew categories seeded so that the database is ready.
 
 **Acceptance Criteria:**
-- [ ] Alembic initialized with async support
-- [ ] Initial migration generated from models
-- [ ] Seed script with 15 Hebrew categories: ירקות, פירות, מוצרי חלב, בשר עופות ודגים, לחמים, קפואים, שימורים ויבשים, חטיפים ומתוקים, משקאות, ניקיון, טיפוח, תינוקות, חד-פעמי, תבלינים ורטבים, אחר
-- [ ] `alembic upgrade head` creates tables in PostgreSQL
-- [ ] Seed script inserts 15 categories
-- [ ] `alembic downgrade base` tears down cleanly
-- [ ] Typecheck passes
+- [x] Alembic initialized with async support
+- [x] Initial migration generated from models
+- [x] Seed script with 15 Hebrew categories: ירקות, פירות, מוצרי חלב, בשר עופות ודגים, לחמים, קפואים, שימורים ויבשים, חטיפים ומתוקים, משקאות, ניקיון, טיפוח, תינוקות, חד-פעמי, תבלינים ורטבים, אחר
+- [x] `alembic upgrade head` creates tables in PostgreSQL
+- [x] Seed script inserts 15 categories
+- [x] `alembic downgrade base` tears down cleanly
+- [x] Typecheck passes
 
 ---
 

@@ -71,3 +71,18 @@
   - Traps: mypy strict requires `dict[str, Any]` not `dict` for JSON columns; `type: ignore[assignment]` not needed when proper type annotation used
   - Helpful context: Tables created: users, categories, products, list_items, receipts, purchases, price_history, user_product_preferences; categories are user-scoped (each user gets own copy); products are global (shared across users)
 ---
+
+## Iteration 5 — US-005: Alembic setup and initial migration with seed categories
+- What was done: Initialized Alembic with async template, configured env.py to read DATABASE_URL from app.config.Settings, updated alembic.ini to skip hardcoded URL. Created manual migration 0001_initial_schema.py with all 8 tables (users, categories, products, list_items, receipts, purchases, price_history, user_product_preferences) including indexes, constraints, and proper FK cascade rules. Created seed script at app/db/seed.py with 15 default Hebrew categories and seed_categories_for_user() function for programmatic use.
+- Files affected:
+  - backend/alembic.ini (new) — Alembic config, URL set programmatically
+  - backend/alembic/env.py (new) — async env with app models imported for autogenerate
+  - backend/alembic/versions/0001_initial_schema.py (new) — full initial schema migration
+  - backend/alembic/script.py.mako (new) — Alembic template for future migrations
+  - backend/alembic/README (new) — Alembic boilerplate
+  - backend/app/db/seed.py (new) — 15 Hebrew categories seed with idempotent insert
+- Learnings for next cycles:
+  - Patterns: Manual migration writing avoids need for live DB during autogenerate; `alembic upgrade head --sql` validates SQL generation offline; seed_categories_for_user() is idempotent (skips existing names) and should be called on new user creation
+  - Traps: `alembic revision --autogenerate` requires a live database connection even for initial schema; Windows console can't display Hebrew in python print — use file I/O or redirect to test Hebrew content; no .env file exists yet so no live DB tests possible
+  - Helpful context: conda env is "smart-shopping"; alembic is already in requirements.txt; migration uses gen_random_uuid() server_default matching the UUIDMixin; seed script can be run as `python -m app.db.seed <user_id>` or imported programmatically
+---
