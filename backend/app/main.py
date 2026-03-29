@@ -9,7 +9,11 @@ from app.api.v1 import api_v1_router
 from app.config import get_settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import setup_logging
-from app.core.middleware import RequestIDMiddleware, SecurityHeadersMiddleware
+from app.core.middleware import (
+    RateLimitMiddleware,
+    RequestIDMiddleware,
+    SecurityHeadersMiddleware,
+)
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
@@ -44,6 +48,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.add_middleware(RequestIDMiddleware)
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(SecurityHeadersMiddleware)
 
     # Exception handlers

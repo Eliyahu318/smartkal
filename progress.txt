@@ -392,3 +392,54 @@
   - Traps: vite-plugin-pwa v0.21 uses generateSW mode by default which works well for precaching; SVG icons need explicit type="image/svg+xml" in manifest; purpose "apple touch icon" is non-standard but harmless
   - Helpful context: Build output shows 12 precache entries (762KB); sw.js and workbox runtime generated in dist/; manifest link auto-injected by plugin into built HTML
 ---
+
+## Iteration 29 — US-029 Task 1: Backend Dockerfile (multi-stage, slim Python)
+- What was done: Created multi-stage Dockerfile for backend. Stage 1 (builder): python:3.11-slim with gcc+libpq-dev for compiling asyncpg, installs deps with --prefix=/install. Stage 2 (production): python:3.11-slim with only libpq5 runtime lib, copies installed packages from builder, copies app code + alembic, runs as non-root "app" user, exposes port 8000, CMD runs uvicorn. Added .dockerignore to exclude tests, dev deps, caches, and env files.
+- Files affected:
+  - backend/Dockerfile (new) — multi-stage build with slim Python 3.11
+  - backend/.dockerignore (new) — excludes tests, caches, dev files
+  - PRD.md (updated) — marked Backend Dockerfile task complete
+- Learnings for next cycles:
+  - Patterns: --prefix=/install in pip install + COPY --from=builder /install /usr/local is the clean way to do multi-stage Python builds; libpq5 is the runtime-only lib for asyncpg (vs libpq-dev which is build-time)
+  - Traps: Must include alembic.ini and alembic/ directory in the image for database migrations at deploy time
+  - Helpful context: Non-root user created with addgroup/adduser --system; requires-python >=3.11 matches the 3.11-slim base image
+---
+
+## Iteration 30 — US-029 Task 2: render.yaml blueprint
+- What was done: Created render.yaml with three services: smartkal-db (PostgreSQL free tier, Frankfurt region), smartkal-api (Docker web service using backend/Dockerfile, /health check, env vars from Render including DATABASE_URL from DB, generated JWT_SECRET, sync=false for API keys), smartkal-frontend (static site, npm build, dist publish path, SPA rewrite rule, security headers). Also added async_database_url property to config.py to normalize Render's postgresql:// to postgresql+asyncpg://, and updated session.py and alembic/env.py to use it.
+- Files affected:
+  - render.yaml (new) — Render.com IaC blueprint with 3 services
+  - backend/app/config.py (updated) — added async_database_url property
+  - backend/app/db/session.py (updated) — uses async_database_url
+  - backend/alembic/env.py (updated) — uses async_database_url
+  - PRD.md (updated) — marked render.yaml task complete
+- Learnings for next cycles:
+  - Patterns: Render provides postgresql:// but asyncpg needs postgresql+asyncpg:// — normalize in config; fromDatabase property: connectionString provides the full URL; sync: false means "prompt user to set manually in dashboard"
+  - Traps: Render static sites use buildCommand at repo root level, so need cd frontend prefix; CORS_ORIGINS uses fromService to get the frontend URL dynamically
+  - Helpful context: 284 tests pass; mypy strict passes on 39 files; Frankfurt region for EU/Israel proximity; render.yaml fromService references resolve cross-service URLs at deploy time
+---
+
+## Iteration 31 — US-029 Task 3-5: Frontend build/Backend start/CORS/Security headers
+- What was done: Verified Frontend build command, static publish path, and SPA rewrite rule were already configured in render.yaml (Iteration 30). Verified Backend start command (Dockerfile CMD), health check path, and env vars were already configured. Verified CORS was already configured via render.yaml CORS_ORIGINS env var + config.py cors_origin_list property. Implemented SecurityHeadersMiddleware in backend/app/core/middleware.py adding X-Content-Type-Options, X-Frame-Options, Referrer-Policy, X-XSS-Protection, Permissions-Policy, and Content-Security-Policy headers. Registered middleware in main.py.
+- Files affected:
+  - backend/app/core/middleware.py (updated) — added SecurityHeadersMiddleware class
+  - backend/app/main.py (updated) — registered SecurityHeadersMiddleware
+  - PRD.md (updated) — marked 4 tasks complete (Frontend build, Backend start, CORS, Security headers)
+- Learnings for next cycles:
+  - Patterns: BaseHTTPMiddleware dispatch pattern works cleanly for adding response headers; middleware order in FastAPI: first added = outermost, so SecurityHeaders after RequestID means it wraps closer to the response
+  - Traps: CSP "default-src 'self'" may be too restrictive if the frontend loads external resources (Google OAuth, CDN fonts) — but for the API backend this is fine
+  - Helpful context: Security headers match what render.yaml already sets for the frontend static site; next task is rate limiting middleware
+---
+
+## Iteration 32 — US-029 Task 6: Rate limiting middleware (10 uploads/hour, 100 calls/minute)
+- What was done: Implemented in-memory sliding window rate limiter with two tiers: general API (100 req/min per IP) and upload endpoint (10 req/hour per IP). Added _SlidingWindowCounter helper class, RateLimitMiddleware class, registered in main.py between RequestID and SecurityHeaders. Returns 429 JSONResponse with Hebrew error messages, Retry-After header, and X-RateLimit-Remaining header on allowed requests. Skips /health and non-API paths. 10 tests covering unit (counter behavior) and integration (rate limiting, IP isolation, headers).
+- Files affected:
+  - backend/app/core/middleware.py (updated) — added _SlidingWindowCounter and RateLimitMiddleware
+  - backend/app/main.py (updated) — registered RateLimitMiddleware
+  - backend/tests/test_rate_limit.py (new) — 10 tests
+  - PRD.md (updated) — marked rate limiting task complete
+- Learnings for next cycles:
+  - Patterns: Return JSONResponse directly from BaseHTTPMiddleware.dispatch instead of raising exceptions — Starlette ExceptionGroup wrapping breaks exception propagation in newer versions; getattr(request.state, "request_id", "") for safe access when middleware ordering may vary
+  - Traps: BaseHTTPMiddleware does NOT cleanly propagate exceptions raised in dispatch() through the middleware stack — Starlette wraps them in ExceptionGroup causing test failures; must return JSONResponse directly for error cases
+  - Helpful context: 294 total tests pass (10 new + 284 existing); mypy strict passes on 39 source files; no external dependencies needed — in-memory sliding window sufficient for single-process Render deployment; for multi-worker scaling would need Redis-backed rate limiter
+---
