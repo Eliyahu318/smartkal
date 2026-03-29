@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import api from "../api/client";
 import { AddItemInput } from "../components/AddItemInput";
 import { ItemDetailsSheet } from "../components/ItemDetailsSheet";
+import { PriceComparisonCard } from "../components/PriceComparisonCard";
 import { ShoppingList } from "../components/ShoppingList";
 import type { ListItemData, ListResponse } from "../components/ShoppingList";
 
@@ -89,6 +90,9 @@ export function ListPage() {
       <div className="px-5 pb-3">
         <h1 className="text-2xl font-bold">רשימת קניות</h1>
       </div>
+
+      {/* Price comparison card — hidden when no price data */}
+      <PriceComparisonCard />
 
       {/* Add item input */}
       <AddItemInput onItemAdded={handleItemAdded} />

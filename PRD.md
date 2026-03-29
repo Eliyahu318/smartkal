@@ -249,12 +249,12 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want to see a price comparison card at the top of my list showing where I can save money.
 
 **Acceptance Criteria:**
-- [ ] `PriceComparisonCard.tsx` — shows recommended store and savings amount
-- [ ] Only visible when price data exists for the user
-- [ ] Tap → expands to show per-store breakdown
-- [ ] Design: subtle green background, store name + total + savings amount
-- [ ] Card hidden when no price data, visible when data exists
-- [ ] Typecheck passes
+- [x] `PriceComparisonCard.tsx` — shows recommended store and savings amount
+- [x] Only visible when price data exists for the user
+- [x] Tap → expands to show per-store breakdown
+- [x] Design: subtle green background, store name + total + savings amount
+- [x] Card hidden when no price data, visible when data exists
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

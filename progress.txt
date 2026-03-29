@@ -226,3 +226,14 @@
   - Traps: In RTL layout, "end-0" positions to the left side (where delete button should appear after left swipe); must use `swiping ? "none" : transition` on transform to avoid laggy touch following; CSS overflow-hidden on container prevents delete button from showing outside bounds
   - Helpful context: DELETE_THRESHOLD = 80px for swipe activation; LONG_PRESS_MS = 500ms; animate-slide-up uses 250ms ease-out; bottom sheet max-width matches phone frame (430px); ItemDetailsSheet conditionally sends PUT only when quantity/note changed and PATCH only when refreshDays changed
 ---
+
+## Iteration 16 — US-016: Price comparison card on list page
+- What was done: Created PriceComparisonCard.tsx that fetches from GET /api/v1/prices/compare-list, renders a collapsible green card at the top of the shopping list showing the cheapest store and potential savings. Card is completely hidden when no price data exists (API returns error or empty data — card stays null). Tap expands to show per-store breakdown with matched product counts and totals. Coverage percentage shown ("השוואה על X מתוך Y מוצרים"). Green dot indicator marks the cheapest store. Integrated into ListPage.tsx between header and AddItemInput. TypeScript typecheck passes.
+- Files affected:
+  - frontend/src/components/PriceComparisonCard.tsx (new) — self-contained card component with fetch, expand/collapse, per-store breakdown
+  - frontend/src/pages/ListPage.tsx (updated) — imported and placed PriceComparisonCard above AddItemInput
+- Learnings for next cycles:
+  - Patterns: Self-contained data-fetching components (fetch on mount, hide on error) work well for optional UI sections that depend on backend endpoints not yet built; the card gracefully degrades — returns null when API 404s
+  - Traps: Backend endpoints for price comparison (US-022/US-023) don't exist yet — the card will remain hidden until those are implemented; ensure the PriceComparisonData interface matches whatever schema US-023 eventually produces
+  - Helpful context: Card uses green-50/green-200/green-700 palette to match the app's green accent color scheme; coverage text format matches PRD spec ("השוואה על X מתוך Y מוצרים (Z%)"); PriceComparisonCard is stateless regarding list data — it fetches independently on mount
+---
