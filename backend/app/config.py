@@ -33,6 +33,16 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     @property
+    def async_database_url(self) -> str:
+        """Normalize DATABASE_URL for asyncpg (Render provides postgresql://)."""
+        url = self.database_url
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
+    @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",")]
 

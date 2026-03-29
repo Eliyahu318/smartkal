@@ -425,7 +425,7 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 
 **Acceptance Criteria:**
 - [x] Backend Dockerfile (multi-stage, slim Python)
-- [ ] `render.yaml` with: frontend static site, backend web service, PostgreSQL database
+- [x] `render.yaml` with: frontend static site, backend web service, PostgreSQL database
 - [ ] Frontend: build command, static publish path, SPA rewrite rule
 - [ ] Backend: start command with uvicorn, health check path, env vars from Render
 - [ ] CORS configured for production domain
