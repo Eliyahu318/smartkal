@@ -382,11 +382,11 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want a settings page and category management so that I can customize my experience.
 
 **Acceptance Criteria:**
-- [ ] `MorePage.tsx` — iOS Settings style grouped list: דשבורד הוצאות, ניהול קטגוריות, הגדרות, עזרה ומשוב, התנתק
-- [ ] `SettingsPage.tsx` — basic settings
-- [ ] `CategoryManagementPage.tsx` — list categories, rename, reorder (drag), add, delete
-- [ ] More tab shows all menu items, category management works
-- [ ] Typecheck passes
+- [x] `MorePage.tsx` — iOS Settings style grouped list: דשבורד הוצאות, ניהול קטגוריות, הגדרות, עזרה ומשוב, התנתק
+- [x] `SettingsPage.tsx` — basic settings
+- [x] `CategoryManagementPage.tsx` — list categories, rename, reorder (drag), add, delete
+- [x] More tab shows all menu items, category management works
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---
