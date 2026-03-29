@@ -370,10 +370,10 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want a spending dashboard with charts so that I can understand my grocery spending.
 
 **Acceptance Criteria:**
-- [ ] `DashboardPage.tsx` — spending total, category donut chart (recharts), store breakdown, monthly trend line chart
-- [ ] Accessible from עוד tab → "דשבורד הוצאות"
-- [ ] Dashboard shows real data from uploaded receipts
-- [ ] Typecheck passes
+- [x] `DashboardPage.tsx` — spending total, category donut chart (recharts), store breakdown, monthly trend line chart
+- [x] Accessible from עוד tab → "דשבורד הוצאות"
+- [x] Dashboard shows real data from uploaded receipts
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

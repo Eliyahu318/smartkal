@@ -5,6 +5,7 @@ import { ToastContainer } from "@/components/Toast";
 import { ListPage } from "@/pages/ListPage";
 import { ReceiptsPage } from "@/pages/ReceiptsPage";
 import { MorePage } from "@/pages/MorePage";
+import { DashboardPage } from "@/pages/DashboardPage";
 import { OnboardingPage } from "@/pages/OnboardingPage";
 import { useAuthStore } from "@/store/authStore";
 
@@ -16,6 +17,7 @@ function AuthenticatedRoutes() {
         <Route path="/list" element={<ListPage />} />
         <Route path="/receipts" element={<ReceiptsPage />} />
         <Route path="/more" element={<MorePage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="*" element={<Navigate to="/list" replace />} />
       </Routes>
     </AppShell>
