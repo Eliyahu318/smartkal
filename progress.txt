@@ -51,3 +51,23 @@
   - Traps: index.html must be at frontend root (not in public/) for Vite; pb-safe utility useful for iPhone bottom safe area but needs custom definition or env support
   - Helpful context: Phone frame uses sm:max-w-phone (430px custom) + sm:rounded-3xl + shadow-2xl for Apple-like appearance; BottomNav uses absolute positioning at bottom with backdrop-blur; lucide-react provides ClipboardList, Receipt, MoreHorizontal icons
 ---
+
+## Iteration 4 — US-004: Database models with UUID primary keys
+- What was done: Created all SQLAlchemy 2.0 async models with UUID PKs, timestamp mixins, async session factory. 8 models: User, Category, Product, ListItem, Receipt, Purchase, PriceHistory, UserProductPreference. ListItem has all required fields (status, refresh fields, source, confidence, display_order). All relationships and FKs defined with proper cascade rules. Composite indexes for key query patterns (user+status, refresh engine, price lookups).
+- Files affected:
+  - backend/app/db/__init__.py (new)
+  - backend/app/db/session.py (new) — async engine, session factory, get_db dependency with commit/rollback
+  - backend/app/models/__init__.py (new) — re-exports all models
+  - backend/app/models/base.py (new) — Base, UUIDMixin (gen_random_uuid), TimestampMixin (func.now)
+  - backend/app/models/user.py (new) — User with Google OAuth fields
+  - backend/app/models/category.py (new) — user-scoped categories with unique constraint
+  - backend/app/models/product.py (new) — global products with barcode + normalized_name indexes
+  - backend/app/models/list_item.py (new) — core entity with status cycling, refresh fields, enums
+  - backend/app/models/receipt.py (new) — Receipt + Purchase models with JSON parsed data
+  - backend/app/models/price_history.py (new) — price tracking with composite index
+  - backend/app/models/user_product_preference.py (new) — per-user product preferences
+- Learnings for next cycles:
+  - Patterns: SQLAlchemy 2.0 Mapped[] + mapped_column() works well with mypy strict; use `from __future__ import annotations` + TYPE_CHECKING for forward refs to avoid circular imports; String columns with Python enums preferred over PG native enums for migration flexibility
+  - Traps: mypy strict requires `dict[str, Any]` not `dict` for JSON columns; `type: ignore[assignment]` not needed when proper type annotation used
+  - Helpful context: Tables created: users, categories, products, list_items, receipts, purchases, price_history, user_product_preferences; categories are user-scoped (each user gets own copy); products are global (shared across users)
+---

@@ -78,13 +78,13 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a developer, I want all SQLAlchemy 2.0 async models defined so that the data layer is ready.
 
 **Acceptance Criteria:**
-- [ ] `backend/app/db/session.py` with async engine and session factory (asyncpg)
-- [ ] `backend/app/models/base.py` with UUID mixin and timestamp mixin
-- [ ] Models created: User, Category, Product, ListItem, Receipt, Purchase, PriceHistory, UserProductPreference
-- [ ] ListItem has: status (active/completed), last_completed_at, last_activated_at, auto_refresh_days, system_refresh_days, next_refresh_at, source, confidence, display_order
-- [ ] All relationships and foreign keys defined correctly
-- [ ] `python -c "from app.models import *"` runs without import errors
-- [ ] Typecheck passes
+- [x] `backend/app/db/session.py` with async engine and session factory (asyncpg)
+- [x] `backend/app/models/base.py` with UUID mixin and timestamp mixin
+- [x] Models created: User, Category, Product, ListItem, Receipt, Purchase, PriceHistory, UserProductPreference
+- [x] ListItem has: status (active/completed), last_completed_at, last_activated_at, auto_refresh_days, system_refresh_days, next_refresh_at, source, confidence, display_order
+- [x] All relationships and foreign keys defined correctly
+- [x] `python -c "from app.models import *"` runs without import errors
+- [x] Typecheck passes
 
 ---
 
