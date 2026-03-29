@@ -86,3 +86,17 @@
   - Traps: `alembic revision --autogenerate` requires a live database connection even for initial schema; Windows console can't display Hebrew in python print — use file I/O or redirect to test Hebrew content; no .env file exists yet so no live DB tests possible
   - Helpful context: conda env is "smart-shopping"; alembic is already in requirements.txt; migration uses gen_random_uuid() server_default matching the UUIDMixin; seed script can be run as `python -m app.db.seed <user_id>` or imported programmatically
 ---
+
+## Iteration 6 — US-006: Error handling system
+- What was done: Created structured error hierarchy with SmartKalError base class and 9 subclasses (ValidationError, AuthenticationError, NotFoundError, RateLimitError, ExternalServiceError, ReceiptParsingError, ClaudeAPIError, SuperGETError, DatabaseError). Each error has error_code, message_he, message_en, status_code, details dict, and auto-captured source_location. Added RequestIDMiddleware that injects X-Request-ID into every request/response. Added global exception handlers for SmartKalError and unhandled Exception. Error response format: {error: {code, message, message_en, details, debug: {timestamp, request_id, source}}}. 21 tests covering all error types, integration tests via test app routes, request ID passthrough, and health endpoint regression.
+- Files affected:
+  - backend/app/core/errors.py (new) — SmartKalError hierarchy with 9 subclasses, Hebrew messages, to_dict() serialization
+  - backend/app/core/middleware.py (new) — RequestIDMiddleware with X-Request-ID injection and unhandled exception catch
+  - backend/app/core/exception_handlers.py (new) — Global handlers for SmartKalError and Exception, register_exception_handlers()
+  - backend/app/main.py (updated) — Added RequestIDMiddleware and exception handler registration
+  - backend/tests/test_errors.py (new) — 21 tests: parametrized error class tests, integration tests, request ID tests
+- Learnings for next cycles:
+  - Patterns: Use parametrized pytest tests for exhaustive error class coverage; create isolated test FastAPI apps with test routes for integration testing error handling
+  - Traps: FastAPI's add_exception_handler(Exception, ...) does NOT catch exceptions that bubble through BaseHTTPMiddleware's call_next — must catch unhandled exceptions directly in the middleware dispatch method; mypy type: ignore comments may become unused across versions — use [arg-type, unused-ignore] combo
+  - Helpful context: ClaudeAPIError and SuperGETError inherit from ExternalServiceError (all 502); ReceiptParsingError is 422 not 502 since it's a client-side parsing issue; structlog contextvars binding in middleware ensures request_id appears in all log entries automatically
+---

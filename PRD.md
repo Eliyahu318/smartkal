@@ -106,13 +106,13 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a developer, I want a structured error hierarchy with Hebrew messages and request tracing so that all errors are consistent and debuggable.
 
 **Acceptance Criteria:**
-- [ ] `backend/app/core/errors.py` with SmartKalError base class and subclasses: ValidationError, AuthenticationError, NotFoundError, RateLimitError, ExternalServiceError, ReceiptParsingError, ClaudeAPIError, SuperGETError, DatabaseError
-- [ ] Every error has: error_code, message_he, message_en, status_code, details dict, auto-captured source_location
-- [ ] Request ID middleware adds X-Request-ID to every response
-- [ ] Global exception handlers for SmartKalError and unhandled Exception
-- [ ] Error response format: `{error: {code, message, message_en, details, debug: {timestamp, request_id, source}}}`
-- [ ] Tests: each exception type returns correct status code and Hebrew message
-- [ ] Typecheck passes
+- [x] `backend/app/core/errors.py` with SmartKalError base class and subclasses: ValidationError, AuthenticationError, NotFoundError, RateLimitError, ExternalServiceError, ReceiptParsingError, ClaudeAPIError, SuperGETError, DatabaseError
+- [x] Every error has: error_code, message_he, message_en, status_code, details dict, auto-captured source_location
+- [x] Request ID middleware adds X-Request-ID to every response
+- [x] Global exception handlers for SmartKalError and unhandled Exception
+- [x] Error response format: `{error: {code, message, message_en, details, debug: {timestamp, request_id, source}}}`
+- [x] Tests: each exception type returns correct status code and Hebrew message
+- [x] Typecheck passes
 
 ---
 

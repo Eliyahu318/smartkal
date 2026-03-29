@@ -6,7 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import setup_logging
+from app.core.middleware import RequestIDMiddleware
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
@@ -32,6 +34,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Middleware (order matters: first added = outermost)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
@@ -39,6 +42,10 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RequestIDMiddleware)
+
+    # Exception handlers
+    register_exception_handlers(app)
 
     @app.get("/health")
     async def health_check() -> dict[str, str]:
