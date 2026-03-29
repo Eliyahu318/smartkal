@@ -181,14 +181,14 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want to create, rename, reorder, and delete categories so that my list is organized my way.
 
 **Acceptance Criteria:**
-- [ ] `GET /api/v1/categories` — all categories for current user
-- [ ] `POST /api/v1/categories` — create new category
-- [ ] `PUT /api/v1/categories/{id}` — rename, change icon
-- [ ] `DELETE /api/v1/categories/{id}` — delete (moves items to אחר)
-- [ ] `POST /api/v1/categories/reorder` — bulk reorder by passing array of IDs
-- [ ] On new user creation, seed 15 default categories
-- [ ] Tests: CRUD, reorder, delete moves items, new user gets defaults
-- [ ] Typecheck passes
+- [x] `GET /api/v1/categories` — all categories for current user
+- [x] `POST /api/v1/categories` — create new category
+- [x] `PUT /api/v1/categories/{id}` — rename, change icon
+- [x] `DELETE /api/v1/categories/{id}` — delete (moves items to אחר)
+- [x] `POST /api/v1/categories/reorder` — bulk reorder by passing array of IDs
+- [x] On new user creation, seed 15 default categories
+- [x] Tests: CRUD, reorder, delete moves items, new user gets defaults
+- [x] Typecheck passes
 
 ---
 

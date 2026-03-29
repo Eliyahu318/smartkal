@@ -159,3 +159,15 @@
   - Traps: mypy strict on SQLAlchemy <= comparison with nullable DateTime columns may or may not need type: ignore[operator] depending on SQLAlchemy version — check before adding; __import__() inline is an anti-pattern, always use proper imports
   - Helpful context: Refresh engine gathers timestamps from both item completion history (last_completed_at) and receipt purchases (Purchase→Receipt join); activate_overdue_items uses ix_list_items_refresh index (status, next_refresh_at); user override auto_refresh_days on ListItem takes priority over system_refresh_days with 0.95 confidence
 ---
+
+## Iteration 11 — US-011: Category management backend
+- What was done: Created full category management API with 5 endpoints: GET /api/v1/categories (list all user categories ordered by display_order), POST /api/v1/categories (create with duplicate name check, auto display_order), PUT /api/v1/categories/{id} (rename/change icon with duplicate check excluding self), DELETE /api/v1/categories/{id} (moves items to "אחר" via bulk UPDATE, prevents deleting "אחר" itself, creates "אחר" if missing), POST /api/v1/categories/reorder (bulk reorder by passing ordered array of IDs). All endpoints user-scoped. 25 tests covering CRUD, reorder, delete with item reassignment, "אחר" creation on delete, user isolation, seed defaults (15 categories), and auth protection for all 5 endpoints. Seeding on new user creation was already implemented in auth.py (Iteration 7).
+- Files affected:
+  - backend/app/api/v1/category.py (new) — 5 endpoints with Pydantic schemas, helpers for category lookup and "אחר" fallback
+  - backend/app/api/v1/__init__.py (updated) — added category_router
+  - backend/tests/test_category.py (new) — 25 tests across 8 test classes
+- Learnings for next cycles:
+  - Patterns: Use SQLAlchemy update() for bulk operations (moving items on category delete) instead of loading each item individually; _get_or_create_other_category pattern ensures "אחר" always exists as a fallback; duplicate name checks need to exclude the current entity on update (Category.id != category_id)
+  - Traps: The "אחר" category might not exist if user manually deleted it before this code was in place — always use get_or_create pattern; reorder endpoint should validate all IDs belong to the user before updating any display_order values
+  - Helpful context: Category router registered at /api/v1/categories; 139 total tests pass (25 new + 114 existing); mypy strict passes; categories are user-scoped with UniqueConstraint on (user_id, name)
+---
