@@ -432,7 +432,7 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 - [x] Security headers middleware
 - [x] Rate limiting middleware (10 uploads/hour, 100 calls/minute)
 - [ ] Deploy succeeds, health endpoint responds, frontend loads
-- [ ] Typecheck passes
+- [x] Typecheck passes
 
 ---
 
