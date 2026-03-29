@@ -332,11 +332,11 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a developer, I want a client that queries SuperGET for Israeli supermarket prices and matches products.
 
 **Acceptance Criteria:**
-- [ ] FIRST: Search web for SuperGET API documentation, confirm base URL, auth method, endpoints
-- [ ] `backend/app/services/price_comparator.py` — match products to SuperGET by barcode first, then fuzzy name match via Claude
-- [ ] Save SuperGET prices to PriceHistory with source='superget'
-- [ ] Tests: matching logic with mocked SuperGET responses
-- [ ] Typecheck passes
+- [x] FIRST: Search web for SuperGET API documentation, confirm base URL, auth method, endpoints
+- [x] `backend/app/services/price_comparator.py` — match products to SuperGET by barcode first, then fuzzy name match via Claude
+- [x] Save SuperGET prices to PriceHistory with source='superget'
+- [x] Tests: matching logic with mocked SuperGET responses
+- [x] Typecheck passes
 
 ---
 
