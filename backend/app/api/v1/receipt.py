@@ -250,6 +250,63 @@ async def get_receipt(
     )
 
 
+@router.post("/{receipt_id}/reprocess", response_model=UploadReceiptResponse)
+async def reprocess_receipt(
+    receipt_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Reprocess an existing receipt: re-run product matching and create list items.
+
+    Useful for receipts uploaded before list-item creation was implemented.
+    Does NOT re-parse the PDF or change timestamps.
+    """
+    result = await db.execute(
+        select(Receipt)
+        .options(selectinload(Receipt.purchases))
+        .where(
+            Receipt.id == receipt_id,
+            Receipt.user_id == current_user.id,
+        )
+    )
+    receipt = result.scalar_one_or_none()
+
+    if receipt is None:
+        raise NotFoundError(
+            message_he="הקבלה לא נמצאה",
+            message_en="Receipt not found",
+        )
+
+    purchases = list(receipt.purchases)
+    match_counts = await match_receipt_purchases(db, receipt, current_user.id, purchases)
+    await db.commit()
+
+    await logger.ainfo(
+        "receipt_reprocessed",
+        receipt_id=str(receipt.id),
+        match_counts=match_counts,
+    )
+
+    detail = ReceiptDetailResponse(
+        id=receipt.id,
+        store_name=receipt.store_name,
+        store_branch=receipt.store_branch,
+        receipt_date=receipt.receipt_date,
+        total_amount=receipt.total_amount,
+        pdf_filename=receipt.pdf_filename,
+        status=receipt.status,
+        created_at=receipt.created_at,
+        updated_at=receipt.updated_at,
+        purchases=[PurchaseResponse.model_validate(p) for p in purchases],
+    )
+
+    return UploadReceiptResponse(
+        receipt=detail,
+        parsed_item_count=len(purchases),
+        match_counts=MatchCountsResponse(**match_counts),
+    )
+
+
 @router.get("", response_model=ReceiptListResponse)
 async def list_receipts(
     page: int = Query(1, ge=1, description="Page number"),

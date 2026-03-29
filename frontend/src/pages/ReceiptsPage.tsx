@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Receipt, FileText } from "lucide-react";
+import { Receipt, FileText, ChevronLeft, ArrowRight, RefreshCw } from "lucide-react";
 import api, { getErrorMessageHe } from "../api/client";
 import { showToast } from "../components/Toast";
 import { ReceiptUpload } from "../components/ReceiptUpload";
@@ -89,7 +89,13 @@ function UploadSkeleton() {
 
 // --- Receipt history item ---
 
-function ReceiptHistoryItem({ receipt }: { receipt: ReceiptSummary }) {
+function ReceiptHistoryItem({
+  receipt,
+  onClick,
+}: {
+  receipt: ReceiptSummary;
+  onClick: () => void;
+}) {
   const dateLabel = receipt.receipt_date
     ? new Date(receipt.receipt_date).toLocaleDateString("he-IL", {
         day: "numeric",
@@ -98,7 +104,11 @@ function ReceiptHistoryItem({ receipt }: { receipt: ReceiptSummary }) {
     : null;
 
   return (
-    <div className="flex items-center gap-3 px-5 py-3">
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 px-5 py-3 text-start transition-colors hover:bg-gray-50 active:bg-gray-100"
+    >
       <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
         <FileText className="h-5 w-5 text-gray-400" />
       </div>
@@ -120,13 +130,148 @@ function ReceiptHistoryItem({ receipt }: { receipt: ReceiptSummary }) {
         )}
         {dateLabel && <p className="text-xs text-gray-400">{dateLabel}</p>}
       </div>
-    </div>
+      <ChevronLeft className="h-4 w-4 flex-shrink-0 text-gray-300" />
+    </button>
   );
 }
 
 // --- Main page ---
 
-type PageView = "upload" | "uploading" | "results";
+// --- Receipt detail view ---
+
+interface ReceiptDetail {
+  id: string;
+  store_name: string | null;
+  store_branch: string | null;
+  receipt_date: string | null;
+  total_amount: string | null;
+  pdf_filename: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  purchases: Array<{
+    id: string;
+    raw_name: string;
+    quantity: number | null;
+    unit_price: string | null;
+    total_price: string | null;
+    barcode: string | null;
+    matched: boolean;
+    product_id: string | null;
+    created_at: string;
+  }>;
+}
+
+function ReceiptDetailView({
+  receipt,
+  onBack,
+  onReprocess,
+  reprocessing,
+}: {
+  receipt: ReceiptDetail;
+  onBack: () => void;
+  onReprocess: () => void;
+  reprocessing: boolean;
+}) {
+  const dateLabel = receipt.receipt_date
+    ? new Date(receipt.receipt_date).toLocaleDateString("he-IL", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
+  const matchedCount = receipt.purchases.filter((p) => p.matched).length;
+  const unmatchedCount = receipt.purchases.length - matchedCount;
+
+  return (
+    <div className="mx-5 space-y-4">
+      {/* Back button */}
+      <button
+        type="button"
+        onClick={onBack}
+        className="flex items-center gap-1 text-sm font-medium text-green-600"
+      >
+        <ArrowRight className="h-4 w-4" />
+        חזרה לקבלות
+      </button>
+
+      {/* Receipt header */}
+      <div className="rounded-2xl bg-gray-50 p-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-lg font-bold text-gray-900">
+              {receipt.store_name ?? "חנות לא ידועה"}
+            </p>
+            {receipt.store_branch && (
+              <p className="text-sm text-gray-500">{receipt.store_branch}</p>
+            )}
+            {dateLabel && (
+              <p className="mt-1 text-xs text-gray-400">{dateLabel}</p>
+            )}
+          </div>
+          {receipt.total_amount && (
+            <p className="text-xl font-bold text-gray-900">
+              ₪{receipt.total_amount}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Match summary */}
+      <div className="rounded-2xl bg-green-50 border border-green-200 p-4">
+        <p className="text-sm font-medium text-green-800">
+          {matchedCount} מוצרים מזוהים · {unmatchedCount} חדשים
+        </p>
+        <p className="mt-1 text-xs text-green-600">
+          {receipt.purchases.length} מוצרים סה״כ
+        </p>
+      </div>
+
+      {/* Reprocess button */}
+      <button
+        type="button"
+        onClick={onReprocess}
+        disabled={reprocessing}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-green-200 bg-white px-4 py-3 text-sm font-semibold text-green-700 transition-all hover:bg-green-50 disabled:opacity-50"
+      >
+        <RefreshCw className={`h-4 w-4 ${reprocessing ? "animate-spin" : ""}`} />
+        {reprocessing ? "מעבד מחדש..." : "עבד מחדש והוסף לרשימה"}
+      </button>
+
+      {/* Items list */}
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-gray-500">מוצרים</p>
+        {receipt.purchases.map((p) => (
+          <div
+            key={p.id}
+            className="flex items-center gap-3 rounded-xl py-2"
+          >
+            <span
+              className={`text-sm ${p.matched ? "text-green-500" : "text-orange-400"}`}
+            >
+              {p.matched ? "✓" : "⚠"}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm text-gray-800">{p.raw_name}</p>
+            </div>
+            {p.quantity && p.quantity !== 1 && (
+              <span className="text-xs text-gray-400">×{p.quantity}</span>
+            )}
+            {p.total_price && (
+              <span className="text-sm font-medium text-gray-600">
+                ₪{p.total_price}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+type PageView = "upload" | "uploading" | "results" | "detail";
 
 export function ReceiptsPage() {
   const navigate = useNavigate();
@@ -135,6 +280,11 @@ export function ReceiptsPage() {
   const [view, setView] = useState<PageView>("upload");
   const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Detail view state
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
 
   // Receipt history state
   const [history, setHistory] = useState<ReceiptSummary[]>([]);
@@ -199,6 +349,45 @@ export function ReceiptsPage() {
     setView("upload");
   }, []);
 
+  // Open receipt detail
+  const handleReceiptClick = useCallback(async (receiptId: string) => {
+    setDetailLoading(true);
+    setView("detail");
+    try {
+      const res = await api.get<ReceiptDetail>(`/api/v1/receipts/${receiptId}`);
+      setSelectedReceipt(res.data);
+    } catch (err) {
+      showToast(getErrorMessageHe(err), "error");
+      setView("upload");
+    } finally {
+      setDetailLoading(false);
+    }
+  }, []);
+
+  // Reprocess receipt — re-run matching and create list items
+  const handleReprocess = useCallback(async () => {
+    if (!selectedReceipt) return;
+    setReprocessing(true);
+    try {
+      const res = await api.post<UploadResult>(
+        `/api/v1/receipts/${selectedReceipt.id}/reprocess`,
+      );
+      // Update the detail view with fresh data
+      setSelectedReceipt(res.data.receipt as unknown as ReceiptDetail);
+      const counts = res.data.match_counts;
+      if (counts) {
+        showToast(
+          `${counts.completed_items} פריטים נוספו לרשימה`,
+          "success",
+        );
+      }
+    } catch (err) {
+      showToast(getErrorMessageHe(err), "error");
+    } finally {
+      setReprocessing(false);
+    }
+  }, [selectedReceipt]);
+
   const monthGroups = groupByMonth(history);
 
   return (
@@ -224,7 +413,7 @@ export function ReceiptsPage() {
 
       {/* Loading skeleton */}
       {view === "uploading" && (
-        <div>
+        <div data-testid="receipt-uploading">
           <div className="px-5 pb-4">
             <div className="flex items-center gap-2">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-green-500" />
@@ -241,6 +430,24 @@ export function ReceiptsPage() {
           result={uploadResult}
           onSave={handleSave}
           saving={saving}
+        />
+      )}
+
+      {/* Receipt detail view */}
+      {view === "detail" && detailLoading && (
+        <div className="flex justify-center py-12">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-green-500" />
+        </div>
+      )}
+      {view === "detail" && !detailLoading && selectedReceipt && (
+        <ReceiptDetailView
+          receipt={selectedReceipt}
+          onBack={() => {
+            setSelectedReceipt(null);
+            setView("upload");
+          }}
+          onReprocess={handleReprocess}
+          reprocessing={reprocessing}
         />
       )}
 
@@ -274,7 +481,11 @@ export function ReceiptsPage() {
                 </p>
                 <div className="divide-y divide-gray-100">
                   {receipts.map((r) => (
-                    <ReceiptHistoryItem key={r.id} receipt={r} />
+                    <ReceiptHistoryItem
+                      key={r.id}
+                      receipt={r}
+                      onClick={() => handleReceiptClick(r.id)}
+                    />
                   ))}
                 </div>
               </div>
