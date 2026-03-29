@@ -147,3 +147,15 @@
   - Traps: mypy strict flags accessing .text on Anthropic response content blocks since it's a union of TextBlock and many other types; cat_map.get() with UUID | None key needs `is not None` guard not truthiness check
   - Helpful context: List items grouped by category for frontend rendering; auto-categorization is best-effort (returns None on any failure — no error thrown to user); the categorizer uses AsyncAnthropic client with claude-sonnet-4-20250514 model
 ---
+
+## Iteration 10 — US-010: Complete/activate items + auto-refresh engine
+- What was done: Created auto-refresh engine service (refresh_engine.py) with frequency calculation using median of intervals from completion history and receipt purchases. Added 4 new endpoints: PATCH complete (sets status=completed, calculates next_refresh_at), PATCH activate (sets status=active, clears next_refresh_at), POST refresh (activates all overdue completed items), PATCH preferences (user override for auto_refresh_days). Confidence scoring tiers: 1→0.2, 2→0.3, 3-4→0.4, 5-9→0.6, 10+→0.8, low variance bonus +0.15 (CV<0.3), user override=0.95. 44 new tests (114 total) covering: pure function unit tests (compute_refresh_days, calculate_confidence, timestamps_to_intervals), endpoint integration tests (complete/activate/refresh/preferences with success/error cases), auth protection for all new endpoints, activate_overdue_items service tests, frequency calculation with known weekly/biweekly date patterns.
+- Files affected:
+  - backend/app/services/refresh_engine.py (new) — frequency calculation, confidence scoring, overdue activation
+  - backend/app/api/v1/list.py (updated) — 4 new endpoints + PreferencesRequest/RefreshResponse schemas
+  - backend/tests/test_refresh.py (new) — 44 tests across 10 test classes
+- Learnings for next cycles:
+  - Patterns: Patch imported functions in the module where they're used (e.g., patch("app.api.v1.list.calculate_refresh_for_item")) for clean endpoint testing; statistics.median/stdev from stdlib sufficient for interval calculations; coefficient of variation (stdev/mean) is a good variance metric for the low-variance bonus
+  - Traps: mypy strict on SQLAlchemy <= comparison with nullable DateTime columns may or may not need type: ignore[operator] depending on SQLAlchemy version — check before adding; __import__() inline is an anti-pattern, always use proper imports
+  - Helpful context: Refresh engine gathers timestamps from both item completion history (last_completed_at) and receipt purchases (Purchase→Receipt join); activate_overdue_items uses ix_list_items_refresh index (status, next_refresh_at); user override auto_refresh_days on ListItem takes priority over system_refresh_days with 0.95 confidence
+---

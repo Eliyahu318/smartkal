@@ -166,14 +166,14 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a user, I want completed items to automatically return to my list when I'm likely to need them again.
 
 **Acceptance Criteria:**
-- [ ] `PATCH /api/v1/list/items/{id}/complete` — set status=completed, record last_completed_at, calculate and set next_refresh_at
-- [ ] `PATCH /api/v1/list/items/{id}/activate` — set status=active, record last_activated_at, clear next_refresh_at
-- [ ] `POST /api/v1/list/refresh` — check all completed items, activate any past next_refresh_at
-- [ ] `backend/app/services/refresh_engine.py` — frequency calculation using median of intervals from completion history and receipt purchases
-- [ ] Confidence scoring: 1 interval=0.2, 2=0.3, 3-4=0.4, 5-9=0.6, 10+=0.8, low variance bonus +0.15, user override=0.95
-- [ ] `PATCH /api/v1/list/items/{id}/preferences` — set auto_refresh_days (user override)
-- [ ] Tests: complete sets next_refresh, refresh activates overdue items, frequency calculation with known dates, user override takes priority
-- [ ] Typecheck passes
+- [x] `PATCH /api/v1/list/items/{id}/complete` — set status=completed, record last_completed_at, calculate and set next_refresh_at
+- [x] `PATCH /api/v1/list/items/{id}/activate` — set status=active, record last_activated_at, clear next_refresh_at
+- [x] `POST /api/v1/list/refresh` — check all completed items, activate any past next_refresh_at
+- [x] `backend/app/services/refresh_engine.py` — frequency calculation using median of intervals from completion history and receipt purchases
+- [x] Confidence scoring: 1 interval=0.2, 2=0.3, 3-4=0.4, 5-9=0.6, 10+=0.8, low variance bonus +0.15, user override=0.95
+- [x] `PATCH /api/v1/list/items/{id}/preferences` — set auto_refresh_days (user override)
+- [x] Tests: complete sets next_refresh, refresh activates overdue items, frequency calculation with known dates, user override takes priority
+- [x] Typecheck passes
 
 ---
 

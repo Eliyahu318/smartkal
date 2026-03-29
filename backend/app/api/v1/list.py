@@ -1,9 +1,9 @@
-"""Shopping list CRUD endpoints: add, view, update, delete items."""
+"""Shopping list CRUD endpoints: add, view, update, delete, complete, activate, refresh."""
 
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import structlog
@@ -19,6 +19,7 @@ from app.models.category import Category
 from app.models.list_item import ListItem, ListItemSource, ListItemStatus
 from app.models.user import User
 from app.services.categorizer import auto_categorize
+from app.services.refresh_engine import activate_overdue_items, calculate_refresh_for_item
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
@@ -81,6 +82,17 @@ class ListResponse(BaseModel):
     groups: list[CategoryGroup]
     total_active: int
     total_completed: int
+
+
+class PreferencesRequest(BaseModel):
+    auto_refresh_days: int | None = Field(
+        None, ge=1, le=365, description="User override for refresh frequency in days"
+    )
+
+
+class RefreshResponse(BaseModel):
+    activated_count: int
+    activated_items: list[ListItemResponse]
 
 
 # --- Helpers ---
@@ -268,3 +280,134 @@ async def delete_item(
     await db.flush()
 
     await logger.ainfo("item_deleted", item_id=str(item_id))
+
+
+@router.patch("/items/{item_id}/complete", response_model=ListItemResponse)
+async def complete_item(
+    item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Mark an item as completed.
+
+    Sets status to completed, records last_completed_at, and calculates
+    next_refresh_at based on purchase frequency history.
+    """
+    item = await _get_user_item(db, item_id, current_user.id)
+
+    if item.status == ListItemStatus.COMPLETED.value:
+        raise ValidationError(
+            message_he="הפריט כבר סומן כהושלם",
+            message_en="Item is already completed",
+        )
+
+    item.status = ListItemStatus.COMPLETED.value
+    item.last_completed_at = datetime.now(timezone.utc)
+
+    # Calculate refresh schedule
+    system_days, confidence, next_refresh_at = await calculate_refresh_for_item(db, item)
+    if system_days is not None:
+        item.system_refresh_days = system_days
+    if confidence is not None:
+        item.confidence = confidence
+    if next_refresh_at is not None:
+        item.next_refresh_at = next_refresh_at
+
+    await db.flush()
+
+    await logger.ainfo(
+        "item_completed",
+        item_id=str(item_id),
+        system_refresh_days=system_days,
+        next_refresh_at=str(next_refresh_at) if next_refresh_at else None,
+    )
+
+    return ListItemResponse.model_validate(item)
+
+
+@router.patch("/items/{item_id}/activate", response_model=ListItemResponse)
+async def activate_item(
+    item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Reactivate a completed item.
+
+    Sets status to active, records last_activated_at, and clears next_refresh_at.
+    """
+    item = await _get_user_item(db, item_id, current_user.id)
+
+    if item.status == ListItemStatus.ACTIVE.value:
+        raise ValidationError(
+            message_he="הפריט כבר פעיל",
+            message_en="Item is already active",
+        )
+
+    item.status = ListItemStatus.ACTIVE.value
+    item.last_activated_at = datetime.now(timezone.utc)
+    item.next_refresh_at = None
+
+    await db.flush()
+
+    await logger.ainfo("item_activated", item_id=str(item_id))
+
+    return ListItemResponse.model_validate(item)
+
+
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_items(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Check all completed items and activate any past their next_refresh_at."""
+    activated = await activate_overdue_items(db, current_user.id)
+
+    return RefreshResponse(
+        activated_count=len(activated),
+        activated_items=[ListItemResponse.model_validate(i) for i in activated],
+    )
+
+
+@router.patch("/items/{item_id}/preferences", response_model=ListItemResponse)
+async def update_item_preferences(
+    item_id: uuid.UUID,
+    body: PreferencesRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Set user override for auto-refresh frequency.
+
+    When auto_refresh_days is set, it takes priority over system-calculated frequency
+    with confidence 0.95. Set to null to clear the override.
+    """
+    item = await _get_user_item(db, item_id, current_user.id)
+
+    item.auto_refresh_days = body.auto_refresh_days
+
+    # If the item is completed and has a user override, recalculate next_refresh_at
+    if item.status == ListItemStatus.COMPLETED.value and body.auto_refresh_days is not None:
+        if item.last_completed_at is not None:
+            item.next_refresh_at = item.last_completed_at + timedelta(
+                days=body.auto_refresh_days
+            )
+            item.confidence = 0.95
+    elif body.auto_refresh_days is None and item.status == ListItemStatus.COMPLETED.value:
+        # Cleared override — recalculate from system data
+        system_days, confidence, next_refresh_at = await calculate_refresh_for_item(db, item)
+        if system_days is not None:
+            item.system_refresh_days = system_days
+            item.confidence = confidence
+            item.next_refresh_at = next_refresh_at
+        else:
+            item.confidence = None
+            item.next_refresh_at = None
+
+    await db.flush()
+
+    await logger.ainfo(
+        "item_preferences_updated",
+        item_id=str(item_id),
+        auto_refresh_days=body.auto_refresh_days,
+    )
+
+    return ListItemResponse.model_validate(item)
