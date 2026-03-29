@@ -395,12 +395,12 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 **Description:** As a new user, I want a welcoming onboarding experience that explains the app's value and gets me started.
 
 **Acceptance Criteria:**
-- [ ] Step 1: logo + "סמארט-כל — רשימת הקניות שמכירה אותך" + Google Sign-In
-- [ ] Step 2: three swipeable value cards with dot indicators — "רשימה שמרעננת את עצמה", "העלה קבלה תראה איפה זול", "ככל שתשתמש ככה חכמה יותר"
-- [ ] Step 3: "מה תרצה לעשות?" with two big cards — "העלאת קבלה" / "יצירת רשימה"
-- [ ] After onboarding: redirect to ListPage or ReceiptsPage based on choice
-- [ ] Full onboarding flow works from login to first action
-- [ ] Typecheck passes
+- [x] Step 1: logo + "סמארט-כל — רשימת הקניות שמכירה אותך" + Google Sign-In
+- [x] Step 2: three swipeable value cards with dot indicators — "רשימה שמרעננת את עצמה", "העלה קבלה תראה איפה זול", "ככל שתשתמש ככה חכמה יותר"
+- [x] Step 3: "מה תרצה לעשות?" with two big cards — "העלאת קבלה" / "יצירת רשימה"
+- [x] After onboarding: redirect to ListPage or ReceiptsPage based on choice
+- [x] Full onboarding flow works from login to first action
+- [x] Typecheck passes
 - [ ] Verify changes work in browser
 
 ---

@@ -42,6 +42,7 @@ export function App() {
   const user = useAuthStore((s) => s.user);
   const initializing = useAuthStore((s) => s.initializing);
   const initialize = useAuthStore((s) => s.initialize);
+  const onboardingComplete = useAuthStore((s) => s.onboardingComplete);
 
   useEffect(() => {
     void initialize();
@@ -55,10 +56,13 @@ export function App() {
     );
   }
 
+  // Show onboarding for unauthenticated users OR authenticated users who haven't completed it
+  const showOnboarding = !user || !onboardingComplete;
+
   return (
     <>
       <ToastContainer />
-      {user ? <AuthenticatedRoutes /> : <UnauthenticatedRoutes />}
+      {showOnboarding ? <UnauthenticatedRoutes /> : <AuthenticatedRoutes />}
     </>
   );
 }

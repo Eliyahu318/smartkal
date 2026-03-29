@@ -22,6 +22,8 @@ interface AuthState {
   initializing: boolean;
   /** In-memory tokens (never persisted to localStorage) */
   _tokens: TokenPair | null;
+  /** Whether user has completed the onboarding flow */
+  onboardingComplete: boolean;
 
   /** Log in with a Google id_token received from GIS */
   loginWithGoogle: (idToken: string) => Promise<void>;
@@ -33,12 +35,17 @@ interface AuthState {
   logout: () => void;
   /** Boot sequence — try to restore session (always resolves) */
   initialize: () => Promise<void>;
+  /** Mark onboarding as complete */
+  completeOnboarding: () => void;
 }
+
+const ONBOARDING_KEY = "smartkal_onboarded";
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
   user: null,
   initializing: true,
   _tokens: null,
+  onboardingComplete: localStorage.getItem(ONBOARDING_KEY) === "1",
 
   loginWithGoogle: async (idToken: string) => {
     const { data } = await api.post<{
@@ -96,6 +103,11 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
     // Tokens live only in memory — on page reload there is nothing to
     // restore, so we simply mark init as done.
     set({ initializing: false });
+  },
+
+  completeOnboarding: () => {
+    localStorage.setItem(ONBOARDING_KEY, "1");
+    set({ onboardingComplete: true });
   },
 }));
 

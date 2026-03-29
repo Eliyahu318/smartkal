@@ -336,3 +336,43 @@
   - Traps: func.to_char is PostgreSQL-specific — works for prod but mock tests bypass actual SQL execution so this is fine; Decimal(str(row[1])) needed for sum of mock Decimal values to avoid float precision issues
   - Helpful context: 284 total tests pass (12 new + 272 existing); mypy strict passes on all 39 source files; dashboard endpoints at /api/v1/dashboard/*; spending endpoint joins Purchase→Receipt→Product→Category for category breakdown; trends uses last 12 months window
 ---
+
+## Iteration 25 — US-025: Dashboard frontend UI with charts
+- What was done: Created DashboardPage.tsx with spending total card (green gradient), category donut chart (recharts PieChart with inner radius for donut style, custom percentage labels, color legend), store breakdown (horizontal progress bars with receipt count), and monthly trend line chart (recharts LineChart with Hebrew month labels, RTL axes). Added period selector (week/month/year) that re-fetches spending data. Updated MorePage.tsx from stub to iOS Settings-style menu with "דשבורד הוצאות" link using BarChart3 icon and ChevronLeft arrow. Added /dashboard route to App.tsx. Empty state shows helpful message to upload receipts. All data fetched from three dashboard API endpoints in parallel with AbortController cleanup.
+- Files affected:
+  - frontend/src/pages/DashboardPage.tsx (new) — full dashboard with 4 sections: spending total, category donut, store breakdown, monthly trend
+  - frontend/src/pages/MorePage.tsx (updated) — iOS Settings-style menu with dashboard link
+  - frontend/src/App.tsx (updated) — added DashboardPage import and /dashboard route
+  - PRD.md (updated) — marked US-025 criteria complete
+- Learnings for next cycles:
+  - Patterns: recharts ResponsiveContainer needs explicit height; PieChart with innerRadius creates donut; XAxis reversed prop for RTL month ordering; YAxis orientation="right" for RTL layout; Promise.all for parallel API fetching
+  - Traps: recharts custom label function receives cx/cy/midAngle/innerRadius/outerRadius — need to calculate position manually with trigonometry; hide labels for small slices (< 5%) to avoid overlap
+  - Helpful context: TypeScript typecheck passes clean; recharts 2.15 installed; CATEGORY_COLORS array of 15 colors matches the 15 Hebrew categories; formatCurrency uses ₪ prefix with toFixed(0) for clean display
+---
+
+## Iteration 26 — US-026: More page, settings, and category management UI
+- What was done: Updated MorePage.tsx to iOS Settings-style grouped menu with 5 items (דשבורד הוצאות, ניהול קטגוריות, הגדרות, עזרה ומשוב, התנתק) organized in 3 visual groups with colored icon backgrounds. Created SettingsPage.tsx with account info display (name, email from authStore) and app version. Created CategoryManagementPage.tsx with full CRUD: inline rename with input focus, add new category with inline input, delete with confirmation dialog (items moved to אחר), and HTML5 drag-and-drop reorder that calls POST /api/v1/categories/reorder. Added /settings and /categories routes to App.tsx.
+- Files affected:
+  - frontend/src/pages/MorePage.tsx (updated) — iOS Settings grouped menu with MenuGroup, MenuItem, MenuDivider components, logout via authStore
+  - frontend/src/pages/SettingsPage.tsx (new) — basic settings with account info and version
+  - frontend/src/pages/CategoryManagementPage.tsx (new) — full category CRUD with drag reorder
+  - frontend/src/App.tsx (updated) — added SettingsPage and CategoryManagementPage routes
+  - PRD.md (updated) — marked US-026 criteria complete
+- Learnings for next cycles:
+  - Patterns: MenuGroup/MenuItem/MenuDivider pattern creates iOS Settings-style grouped lists cleanly; HTML5 draggable + onDragStart/onDragOver/onDrop provides basic reorder without extra deps; useRef + useEffect for auto-focus on inline edit inputs
+  - Traps: Array.splice returns T|undefined in strict TS — need explicit guard before using the spliced element; showToast imported from Toast component for non-React contexts
+  - Helpful context: TypeScript typecheck passes clean; backend category endpoints already support all needed operations (GET, POST, PUT, DELETE, POST /reorder); authStore exposes logout() for disconnect button
+---
+
+## Iteration 27 — US-027: Onboarding flow
+- What was done: Transformed single-screen OnboardingPage into 3-step onboarding flow. Step 1: logo + tagline + Google Sign-In (preserved existing implementation). Step 2: three swipeable value cards with dot indicators, touch swipe support for RTL (swipe left=next), animated active dot (wider green pill), navigation arrows, "המשך" button on last card, "דלג" skip link. Step 3: "מה תרצה לעשות?" with two action cards — "העלאת קבלה" (→ /receipts) and "יצירת רשימה" (→ /list), each with icon, title, and description. Added onboardingComplete flag to authStore (persisted in localStorage as "smartkal_onboarded") so returning users skip steps 2-3 after re-login. Updated App.tsx to show onboarding for both unauthenticated users and authenticated users who haven't completed onboarding.
+- Files affected:
+  - frontend/src/pages/OnboardingPage.tsx (rewritten) — 3-step flow with StepLogin, StepValueCards, StepChooseAction components
+  - frontend/src/store/authStore.ts (updated) — added onboardingComplete state + completeOnboarding action + localStorage persistence
+  - frontend/src/App.tsx (updated) — added onboardingComplete check to routing logic
+  - PRD.md (updated) — marked US-027 criteria complete
+- Learnings for next cycles:
+  - Patterns: Use localStorage for non-sensitive UX flags (onboarding completion) even when auth tokens are in-memory only; React.TouchEvent touch array elements may be undefined in strict TS — guard with optional access; `as const` on arrays makes elements readonly which helps with type inference but requires fallback for array indexing
+  - Traps: TypeScript strict mode treats array index access as possibly undefined — use nullish coalescing (`??`) for array element access; RTL swipe direction: positive touchStart-touchEnd diff means swipe left (which should go to next card in RTL)
+  - Helpful context: TypeScript typecheck passes clean; lucide-react provides RefreshCw, Brain, Upload, ListPlus icons used in onboarding cards; onboarding localStorage key is "smartkal_onboarded"
+---
