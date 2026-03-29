@@ -14,42 +14,36 @@ from app.core.errors import ClaudeAPIError, ReceiptParsingError
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
+SYSTEM_PROMPT = """\
+אתה מנתח קבלות סופרמרקט ישראליות מדויק ומהיר.
+תפקידך: לחלץ נתוני מוצרים מטקסט קבלה ולהחזיר JSON תקין בלבד.
+אתה מחזיר אך ורק JSON — בלי markdown, בלי הסברים, בלי backticks."""
+
 RECEIPT_PARSE_PROMPT = """\
-אתה מנתח קבלות סופרמרקט ישראליות. קיבלת טקסט גולמי שחולץ מקובץ PDF של קבלה.
+חלץ את כל המוצרים מהקבלה הבאה והחזר JSON בפורמט הזה בדיוק:
 
-חלץ את הנתונים הבאים בפורמט JSON בלבד:
+{"store_name":"שם הרשת","store_branch":"סניף או null","receipt_date":"YYYY-MM-DD או null","total_amount":123.45,"items":[{"name":"שם מוצר","quantity":1.0,"unit_price":12.90,"total_price":12.90,"barcode":"ברקוד או null"}]}
 
-{
-  "store_name": "שם הרשת (למשל: רמי לוי, שופרסל, יוחננוף)",
-  "store_branch": "שם הסניף אם מופיע, אחרת null",
-  "receipt_date": "YYYY-MM-DD אם מופיע, אחרת null",
-  "total_amount": 123.45,
-  "items": [
-    {
-      "name": "שם המוצר בעברית",
-      "quantity": 1.0,
-      "unit_price": 12.90,
-      "total_price": 12.90,
-      "barcode": "ברקוד אם מופיע, אחרת null"
-    }
-  ]
-}
-
-כללים חשובים:
-- החזר JSON תקין בלבד, ללא טקסט נוסף
+כללים:
+- JSON בלבד. בלי ```json, בלי הסברים, בלי טקסט נוסף
 - שמות מוצרים בעברית כפי שמופיעים בקבלה
 - מחירים כמספרים (לא מחרוזות)
-- כמות ברירת מחדל היא 1.0 אם לא מצוין
-- התעלם משורות שאינן מוצרים (כותרות, סיכומים, מע"מ, תשלום)
-- אם שדה לא מופיע בקבלה, השתמש ב-null
-- total_amount הוא הסכום הכולל לתשלום
+- כמות ברירת מחדל: 1.0
+- התעלם משורות שאינן מוצרים (כותרות, סיכומים, מע"מ, תשלום, ברקודים בודדים)
+- שדה חסר = null
 
 טקסט הקבלה:
 """
 
+RETRY_PROMPT = """\
+ה-JSON שהחזרת לא תקין. השגיאה: {error}
+
+חזור על הניתוח והחזר JSON תקין בלבד. בלי markdown, בלי backticks, בלי הסברים.
+רק JSON חוקי שמתחיל ב-{{ ומסתיים ב-}}."""
+
 MAX_RETRIES = 2
 MODEL = "claude-sonnet-4-20250514"
-MAX_TOKENS = 4096
+MAX_TOKENS = 16384
 
 
 @dataclass
@@ -158,7 +152,10 @@ async def parse_receipt(receipt_text: str) -> ParsedReceipt:
         )
 
     client = AsyncAnthropic(api_key=settings.anthropic_api_key)
-    prompt = RECEIPT_PARSE_PROMPT + receipt_text
+    user_prompt = RECEIPT_PARSE_PROMPT + receipt_text
+
+    # Build conversation — retries append error feedback so Claude can self-correct
+    messages: list[dict[str, str]] = [{"role": "user", "content": user_prompt}]
 
     last_error: Exception | None = None
 
@@ -167,7 +164,8 @@ async def parse_receipt(receipt_text: str) -> ParsedReceipt:
             response = await client.messages.create(
                 model=MODEL,
                 max_tokens=MAX_TOKENS,
-                messages=[{"role": "user", "content": prompt}],
+                system=SYSTEM_PROMPT,
+                messages=messages,
             )
 
             first_block = response.content[0]
@@ -185,6 +183,13 @@ async def parse_receipt(receipt_text: str) -> ParsedReceipt:
                     text = text[start_idx:end_idx].strip()
                 else:
                     text = text[start_idx:].strip()
+
+            # Check if response was truncated (hit max_tokens)
+            if response.stop_reason == "max_tokens":
+                raise ReceiptParsingError(
+                    message_he="תגובת Claude נחתכה באמצע — הקבלה ארוכה מדי",
+                    message_en="Claude response truncated (max_tokens reached)",
+                )
 
             data = json.loads(text)
             parsed = _validate_and_build(data)
@@ -208,7 +213,12 @@ async def parse_receipt(receipt_text: str) -> ParsedReceipt:
             )
             if attempt >= MAX_RETRIES + 1:
                 break
-            # Retry on parse/validation errors
+            # Append Claude's broken response + error feedback for self-correction
+            messages.append({"role": "assistant", "content": text if "text" in dir() else ""})
+            messages.append({
+                "role": "user",
+                "content": RETRY_PROMPT.format(error=str(exc)),
+            })
 
         except Exception as exc:
             last_error = exc
@@ -220,7 +230,8 @@ async def parse_receipt(receipt_text: str) -> ParsedReceipt:
             )
             if attempt >= MAX_RETRIES + 1:
                 break
-            # Retry on API errors
+            # On API errors, reset conversation and retry fresh
+            messages = [{"role": "user", "content": user_prompt}]
 
     # All attempts exhausted
     if isinstance(last_error, (ReceiptParsingError, json.JSONDecodeError)):
