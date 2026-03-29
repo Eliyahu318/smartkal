@@ -1,0 +1,16 @@
+# Progress Log
+
+## Learnings
+(Notes discovered during implementation)
+
+## Iteration 1 — US-001: Project Scaffolding
+- What was done: Created monorepo structure with backend/ and frontend/ directories, all dependency files, root config files
+- Files affected:
+  - backend/pyproject.toml, requirements.txt, requirements-dev.txt
+  - frontend/package.json, tsconfig.json, src/main.tsx (placeholder)
+  - .gitignore, .env.example, docker-compose.yml, Makefile
+- Learnings for next cycles:
+  - Patterns: pip install and npm install both succeed cleanly on this machine
+  - Traps: frontend needs tsconfig.json + at least one .tsx file for typecheck to have something to check
+  - Helpful context: Python 3.x and Node available in PATH; using asyncpg 0.31, SQLAlchemy 2.0.48, FastAPI 0.135
+---
