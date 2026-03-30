@@ -325,6 +325,66 @@ async def add_item(
 # --- Bulk endpoints (must be before /{item_id} routes) ---
 
 
+class RecategorizeResponse(BaseModel):
+    recategorized_count: int
+
+
+@router.post("/items/recategorize", response_model=RecategorizeResponse)
+async def recategorize_items(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Re-categorize items stuck in 'אחר' (or with no category) via Claude API."""
+    # Find the "אחר" category for this user
+    other_result = await db.execute(
+        select(Category).where(
+            Category.user_id == current_user.id,
+            Category.name == "אחר",
+        )
+    )
+    other_category = other_result.scalar_one_or_none()
+    other_id = other_category.id if other_category else None
+
+    # Find items in "אחר" or without category
+    conditions = [ListItem.user_id == current_user.id]
+    if other_id:
+        conditions.append(
+            (ListItem.category_id == other_id) | (ListItem.category_id.is_(None))
+        )
+    else:
+        conditions.append(ListItem.category_id.is_(None))
+
+    result = await db.execute(select(ListItem).where(*conditions))
+    items = list(result.scalars().all())
+
+    recategorized = 0
+    for item in items:
+        new_category_id = await auto_categorize(db, current_user.id, item.name)
+        if new_category_id and new_category_id != other_id:
+            item.category_id = new_category_id
+            # Cache on linked product for future matches
+            if item.product_id:
+                prod_result = await db.execute(
+                    select(Product).where(Product.id == item.product_id)
+                )
+                product = prod_result.scalar_one_or_none()
+                if product and not product.category_id:
+                    product.category_id = new_category_id
+            recategorized += 1
+
+    if recategorized:
+        await db.flush()
+
+    await logger.ainfo(
+        "items_recategorized",
+        user_id=str(current_user.id),
+        total=len(items),
+        recategorized=recategorized,
+    )
+
+    return RecategorizeResponse(recategorized_count=recategorized)
+
+
 @router.patch("/items/bulk/activate", response_model=BulkActionResponse)
 async def bulk_activate_items(
     body: BulkItemsRequest | None = None,

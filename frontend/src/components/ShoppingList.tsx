@@ -50,12 +50,14 @@ interface ShoppingListProps {
   onDelete?: (item: ListItemData) => void;
   onLongPress?: (item: ListItemData) => void;
   onResetAll?: () => void;
+  onRecategorize?: () => void;
+  recategorizing?: boolean;
   selectionMode?: boolean;
   selectedIds?: Set<string>;
   onSelectionToggle?: (item: ListItemData) => void;
 }
 
-export function ShoppingList({ data, onToggle, onDelete, onLongPress, onResetAll, selectionMode, selectedIds, onSelectionToggle }: ShoppingListProps) {
+export function ShoppingList({ data, onToggle, onDelete, onLongPress, onResetAll, onRecategorize, recategorizing, selectionMode, selectedIds, onSelectionToggle }: ShoppingListProps) {
   // Separate active and completed groups
   const activeGroups: CategoryGroup[] = [];
   const completedItems: ListItemData[] = [];
@@ -83,6 +85,8 @@ export function ShoppingList({ data, onToggle, onDelete, onLongPress, onResetAll
           selectionMode={selectionMode}
           selectedIds={selectedIds}
           onSelectionToggle={onSelectionToggle}
+          onRecategorize={onRecategorize}
+          recategorizing={recategorizing}
         />
       ))}
 

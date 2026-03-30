@@ -101,6 +101,21 @@ export function ListPage() {
     }
   }, [fetchList]);
 
+  // --- Recategorize items in "אחר" ---
+  const [recategorizing, setRecategorizing] = useState(false);
+
+  const handleRecategorize = useCallback(async () => {
+    setRecategorizing(true);
+    try {
+      await api.post("/api/v1/list/items/recategorize");
+      await fetchList();
+    } catch {
+      setError("שגיאה בסיווג מחדש");
+    } finally {
+      setRecategorizing(false);
+    }
+  }, [fetchList]);
+
   // --- Selection mode ---
   const handleSelectionToggle = useCallback((item: ListItemData) => {
     setSelectedIds((prev) => {
@@ -209,6 +224,8 @@ export function ListPage() {
           onDelete={handleDelete}
           onLongPress={handleLongPress}
           onResetAll={handleResetAll}
+          onRecategorize={handleRecategorize}
+          recategorizing={recategorizing}
           selectionMode={selectionMode}
           selectedIds={selectedIds}
           onSelectionToggle={handleSelectionToggle}
