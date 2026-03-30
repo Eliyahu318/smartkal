@@ -327,6 +327,11 @@ async def add_item(
 
 class RecategorizeResponse(BaseModel):
     recategorized_count: int
+    remaining_count: int
+
+
+# Max items per recategorize call to avoid timeout (~1.5s per Claude API call)
+_RECATEGORIZE_BATCH_SIZE = 30
 
 
 @router.post("/items/recategorize", response_model=RecategorizeResponse)
@@ -334,7 +339,11 @@ async def recategorize_items(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
-    """Re-categorize items stuck in 'אחר' (or with no category) via Claude API."""
+    """Re-categorize items stuck in 'אחר' (or with no category) via Claude API.
+
+    Processes up to 30 items per call to avoid timeout. Returns remaining_count
+    so the frontend can call again if needed.
+    """
     # Find the "אחר" category for this user
     other_result = await db.execute(
         select(Category).where(
@@ -355,10 +364,11 @@ async def recategorize_items(
         conditions.append(ListItem.category_id.is_(None))
 
     result = await db.execute(select(ListItem).where(*conditions))
-    items = list(result.scalars().all())
+    all_items = list(result.scalars().all())
+    batch = all_items[:_RECATEGORIZE_BATCH_SIZE]
 
     recategorized = 0
-    for item in items:
+    for item in batch:
         new_category_id = await auto_categorize(db, current_user.id, item.name)
         if new_category_id and new_category_id != other_id:
             item.category_id = new_category_id
@@ -375,14 +385,17 @@ async def recategorize_items(
     if recategorized:
         await db.flush()
 
+    remaining = len(all_items) - len(batch)
+
     await logger.ainfo(
         "items_recategorized",
         user_id=str(current_user.id),
-        total=len(items),
+        batch_size=len(batch),
         recategorized=recategorized,
+        remaining=remaining,
     )
 
-    return RecategorizeResponse(recategorized_count=recategorized)
+    return RecategorizeResponse(recategorized_count=recategorized, remaining_count=remaining)
 
 
 @router.patch("/items/bulk/activate", response_model=BulkActionResponse)

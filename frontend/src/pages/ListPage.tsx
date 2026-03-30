@@ -107,8 +107,16 @@ export function ListPage() {
   const handleRecategorize = useCallback(async () => {
     setRecategorizing(true);
     try {
-      await api.post("/api/v1/list/items/recategorize");
-      await fetchList();
+      // Process in batches — server handles 30 at a time
+      let remaining = 1;
+      while (remaining > 0) {
+        const { data } = await api.post<{ recategorized_count: number; remaining_count: number }>(
+          "/api/v1/list/items/recategorize",
+        );
+        remaining = data.remaining_count;
+        // Refresh list after each batch so user sees progress
+        await fetchList();
+      }
     } catch {
       setError("שגיאה בסיווג מחדש");
     } finally {
