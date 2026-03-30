@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -25,6 +27,18 @@ from app.services.refresh_engine import activate_overdue_items, calculate_refres
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 router = APIRouter(prefix="/list", tags=["list"])
+
+# Invisible Unicode characters that can slip in from Hebrew keyboards / RTL editing
+_INVISIBLE_RE = re.compile(
+    r"[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff\u00ad\u034f\u061c\u180e]"
+)
+
+
+def _sanitize_name(raw: str) -> str:
+    """Strip invisible Unicode chars, normalize to NFC, and trim whitespace."""
+    cleaned = _INVISIBLE_RE.sub("", raw)
+    cleaned = unicodedata.normalize("NFC", cleaned)
+    return cleaned.strip()
 
 
 # --- Request / Response schemas ---
@@ -110,6 +124,14 @@ class SuggestionItem(BaseModel):
 
 class SuggestionsResponse(BaseModel):
     suggestions: list[SuggestionItem]
+
+
+class BulkItemsRequest(BaseModel):
+    item_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=100)
+
+
+class BulkActionResponse(BaseModel):
+    affected_count: int
 
 
 # --- Helpers ---
@@ -262,6 +284,13 @@ async def add_item(
 
     If category_id is not provided, attempts auto-categorization via Claude API.
     """
+    name = _sanitize_name(body.name)
+    if not name:
+        raise ValidationError(
+            message_he="שם המוצר ריק",
+            message_en="Product name is empty after sanitization",
+        )
+
     category_id = body.category_id
 
     # Validate category ownership if provided
@@ -270,11 +299,11 @@ async def add_item(
 
     # Auto-categorize if no category specified
     if category_id is None:
-        category_id = await auto_categorize(db, current_user.id, body.name)
+        category_id = await auto_categorize(db, current_user.id, name)
 
     item = ListItem(
         user_id=current_user.id,
-        name=body.name,
+        name=name,
         quantity=body.quantity,
         category_id=category_id,
         status=ListItemStatus.ACTIVE.value,
@@ -286,11 +315,91 @@ async def add_item(
     await logger.ainfo(
         "item_added",
         item_id=str(item.id),
-        name=body.name,
+        name=name,
         category_id=str(category_id) if category_id else None,
     )
 
     return ListItemResponse.model_validate(item)
+
+
+# --- Bulk endpoints (must be before /{item_id} routes) ---
+
+
+@router.patch("/items/bulk/activate", response_model=BulkActionResponse)
+async def bulk_activate_items(
+    body: BulkItemsRequest | None = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Activate completed items. If item_ids provided, activate those; otherwise activate all."""
+    query = select(ListItem).where(
+        ListItem.user_id == current_user.id,
+        ListItem.status == ListItemStatus.COMPLETED.value,
+    )
+    if body and body.item_ids:
+        query = query.where(ListItem.id.in_(body.item_ids))
+
+    result = await db.execute(query)
+    items = list(result.scalars().all())
+    now = datetime.now(timezone.utc)
+
+    for item in items:
+        item.status = ListItemStatus.ACTIVE.value
+        item.last_activated_at = now
+        item.next_refresh_at = None
+
+    await db.flush()
+    await logger.ainfo("bulk_activate", count=len(items), user_id=str(current_user.id))
+    return BulkActionResponse(affected_count=len(items))
+
+
+@router.patch("/items/bulk/complete", response_model=BulkActionResponse)
+async def bulk_complete_items(
+    body: BulkItemsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Mark multiple active items as completed."""
+    result = await db.execute(
+        select(ListItem).where(
+            ListItem.user_id == current_user.id,
+            ListItem.status == ListItemStatus.ACTIVE.value,
+            ListItem.id.in_(body.item_ids),
+        )
+    )
+    items = list(result.scalars().all())
+    now = datetime.now(timezone.utc)
+
+    for item in items:
+        item.status = ListItemStatus.COMPLETED.value
+        item.last_completed_at = now
+
+    await db.flush()
+    await logger.ainfo("bulk_complete", count=len(items), user_id=str(current_user.id))
+    return BulkActionResponse(affected_count=len(items))
+
+
+@router.post("/items/bulk/delete", response_model=BulkActionResponse)
+async def bulk_delete_items(
+    body: BulkItemsRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Permanently delete multiple items."""
+    result = await db.execute(
+        select(ListItem).where(
+            ListItem.user_id == current_user.id,
+            ListItem.id.in_(body.item_ids),
+        )
+    )
+    items = list(result.scalars().all())
+
+    for item in items:
+        await db.delete(item)
+
+    await db.flush()
+    await logger.ainfo("bulk_delete", count=len(items), user_id=str(current_user.id))
+    return BulkActionResponse(affected_count=len(items))
 
 
 @router.put("/items/{item_id}", response_model=ListItemResponse)
@@ -304,7 +413,13 @@ async def update_item(
     item = await _get_user_item(db, item_id, current_user.id)
 
     if body.name is not None:
-        item.name = body.name
+        sanitized = _sanitize_name(body.name)
+        if not sanitized:
+            raise ValidationError(
+                message_he="שם המוצר ריק",
+                message_en="Product name is empty after sanitization",
+            )
+        item.name = sanitized
     if body.quantity is not None:
         item.quantity = body.quantity
     if body.note is not None:

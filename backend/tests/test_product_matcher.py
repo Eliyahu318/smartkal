@@ -490,13 +490,25 @@ class TestMatchReceiptPurchases:
         items_unlinked_result = MagicMock()
         items_unlinked_result.scalars.return_value.all.return_value = []
 
+        # No existing completed item for this product
+        existing_completed_result = MagicMock()
+        existing_completed_result.scalar_one_or_none.return_value = None
+
+        # Default category lookup returns None
+        default_category_result = MagicMock()
+        default_category_result.scalar_one_or_none.return_value = None
+
         db.execute.side_effect = [
             barcode_result,
             items_by_product_result,
             items_unlinked_result,
+            existing_completed_result,
+            default_category_result,
         ]
 
-        counts = await match_receipt_purchases(db, receipt, FAKE_USER_ID)
+        counts = await match_receipt_purchases(
+            db, receipt, FAKE_USER_ID, purchases=[purchase],
+        )
 
         assert counts["barcode"] == 1
         assert purchase.product_id == product.id
@@ -530,13 +542,15 @@ class TestMatchReceiptPurchases:
         barcode_result = MagicMock()
         barcode_result.scalar_one_or_none.return_value = product
 
-        # List items matching product_id
+        # List items matching product_id — item found, so no further DB calls needed
         items_result = MagicMock()
         items_result.scalars.return_value.all.return_value = [list_item]
 
         db.execute.side_effect = [barcode_result, items_result]
 
-        counts = await match_receipt_purchases(db, receipt, FAKE_USER_ID)
+        counts = await match_receipt_purchases(
+            db, receipt, FAKE_USER_ID, purchases=[purchase],
+        )
 
         assert counts["completed_items"] == 1
         assert list_item.status == "completed"

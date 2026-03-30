@@ -6,11 +6,12 @@ import uuid
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Cookie, Depends, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import Settings, get_settings
 from app.core.errors import AuthenticationError
 from app.core.security import (
     create_token_pair,
@@ -26,6 +27,32 @@ logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+_COOKIE_MAX_AGE = 30 * 24 * 3600  # 30 days
+
+
+def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> None:
+    """Set the refresh token as an httpOnly cookie."""
+    response.set_cookie(
+        key="refresh_token",
+        value=token,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+        path="/api/v1/auth",
+        max_age=_COOKIE_MAX_AGE,
+    )
+
+
+def _clear_refresh_cookie(response: Response, settings: Settings) -> None:
+    """Remove the refresh token cookie."""
+    response.delete_cookie(
+        key="refresh_token",
+        path="/api/v1/auth",
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite="lax",
+    )
+
 
 # --- Request / Response schemas ---
 
@@ -36,12 +63,7 @@ class GoogleLoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    refresh_token: str
     token_type: str = "bearer"
-
-
-class RefreshRequest(BaseModel):
-    refresh_token: str = Field(..., min_length=1)
 
 
 class UserResponse(BaseModel):
@@ -60,7 +82,9 @@ class UserResponse(BaseModel):
 @router.post("/google", response_model=TokenResponse)
 async def google_login(
     body: GoogleLoginRequest,
+    response: Response,
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> TokenResponse:
     """Verify Google id_token, create or update user, return JWT pair."""
     id_info = verify_google_token(body.id_token)
@@ -96,12 +120,15 @@ async def google_login(
         await logger.ainfo("user_logged_in", user_id=str(user.id), email=email)
 
     tokens = create_token_pair(user.id)
-    return TokenResponse(**tokens)
+    _set_refresh_cookie(response, tokens["refresh_token"], settings)
+    return TokenResponse(access_token=tokens["access_token"])
 
 
 @router.post("/guest", response_model=TokenResponse)
 async def guest_login(
+    response: Response,
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> TokenResponse:
     """Create a temporary guest user and return JWT pair."""
     guest_id = uuid.uuid4()
@@ -121,16 +148,25 @@ async def guest_login(
     await logger.ainfo("guest_user_created", user_id=str(user.id))
 
     tokens = create_token_pair(user.id)
-    return TokenResponse(**tokens)
+    _set_refresh_cookie(response, tokens["refresh_token"], settings)
+    return TokenResponse(access_token=tokens["access_token"])
 
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_tokens(
-    body: RefreshRequest,
+    response: Response,
+    refresh_token: str | None = Cookie(None),
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> TokenResponse:
-    """Exchange a valid refresh token for a new token pair."""
-    payload = decode_token(body.refresh_token, expected_type="refresh")
+    """Exchange a valid refresh token (from httpOnly cookie) for a new token pair."""
+    if not refresh_token:
+        raise AuthenticationError(
+            message_he="לא נמצא טוקן רענון",
+            message_en="No refresh token provided",
+        )
+
+    payload = decode_token(refresh_token, expected_type="refresh")
     user_id = payload["sub"]
 
     try:
@@ -152,7 +188,18 @@ async def refresh_tokens(
         )
 
     tokens = create_token_pair(user.id)
-    return TokenResponse(**tokens)
+    _set_refresh_cookie(response, tokens["refresh_token"], settings)
+    return TokenResponse(access_token=tokens["access_token"])
+
+
+@router.post("/logout")
+async def logout(
+    response: Response,
+    settings: Settings = Depends(get_settings),
+) -> dict[str, str]:
+    """Clear the refresh token cookie."""
+    _clear_refresh_cookie(response, settings)
+    return {"status": "ok"}
 
 
 @router.get("/me", response_model=UserResponse)

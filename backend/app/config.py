@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "http://localhost:5173"
 
+    # Cookies
+    cookie_secure: bool = True
+
     # Environment
     environment: str = "development"
 

@@ -49,9 +49,13 @@ interface ShoppingListProps {
   onToggle?: (item: ListItemData) => void;
   onDelete?: (item: ListItemData) => void;
   onLongPress?: (item: ListItemData) => void;
+  onResetAll?: () => void;
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onSelectionToggle?: (item: ListItemData) => void;
 }
 
-export function ShoppingList({ data, onToggle, onDelete, onLongPress }: ShoppingListProps) {
+export function ShoppingList({ data, onToggle, onDelete, onLongPress, onResetAll, selectionMode, selectedIds, onSelectionToggle }: ShoppingListProps) {
   // Separate active and completed groups
   const activeGroups: CategoryGroup[] = [];
   const completedItems: ListItemData[] = [];
@@ -76,12 +80,15 @@ export function ShoppingList({ data, onToggle, onDelete, onLongPress }: Shopping
           onToggle={onToggle}
           onDelete={onDelete}
           onLongPress={onLongPress}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onSelectionToggle={onSelectionToggle}
         />
       ))}
 
       {/* Empty state */}
       {activeGroups.length === 0 && completedItems.length === 0 && (
-        <p className="px-5 pt-4 text-center text-gray-400">
+        <p data-testid="list-empty-state" className="px-5 pt-4 text-center text-gray-400">
           הרשימה שלך ריקה. הוסיפי מוצר כדי להתחיל!
         </p>
       )}
@@ -93,6 +100,10 @@ export function ShoppingList({ data, onToggle, onDelete, onLongPress }: Shopping
           onToggle={onToggle}
           onDelete={onDelete}
           onLongPress={onLongPress}
+          onResetAll={onResetAll}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onSelectionToggle={onSelectionToggle}
         />
       )}
     </div>
@@ -106,25 +117,44 @@ interface CompletedSectionProps {
   onToggle?: (item: ListItemData) => void;
   onDelete?: (item: ListItemData) => void;
   onLongPress?: (item: ListItemData) => void;
+  onResetAll?: () => void;
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onSelectionToggle?: (item: ListItemData) => void;
 }
 
-function CompletedSection({ items, onToggle, onDelete, onLongPress }: CompletedSectionProps) {
+function CompletedSection({ items, onToggle, onDelete, onLongPress, onResetAll, selectionMode, selectedIds, onSelectionToggle }: CompletedSectionProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
     <div className="mt-4 border-t border-gray-100 pt-2">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2 px-5 py-2"
-      >
-        <span className="text-[13px] font-bold text-gray-400">
-          {items.length} הושלמו
-        </span>
-        <span className="text-[12px] text-gray-400">
-          {expanded ? "הסתר" : "הצג"}
-        </span>
-      </button>
+      <div className="flex items-center px-5 py-2">
+        <button
+          type="button"
+          data-testid="completed-toggle"
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-2"
+        >
+          <span className="text-[13px] font-bold text-gray-400">
+            {items.length} הושלמו
+          </span>
+          <span className="text-[12px] text-gray-400">
+            {expanded ? "הסתר" : "הצג"}
+          </span>
+        </button>
+
+        <div className="flex-1" />
+
+        {onResetAll && items.length > 0 && (
+          <button
+            type="button"
+            onClick={onResetAll}
+            className="text-[12px] font-medium text-green-600 hover:text-green-700"
+          >
+            החזר הכל
+          </button>
+        )}
+      </div>
 
       {expanded && (
         <div>
@@ -135,6 +165,9 @@ function CompletedSection({ items, onToggle, onDelete, onLongPress }: CompletedS
               onToggle={onToggle}
               onDelete={onDelete}
               onLongPress={onLongPress}
+              selectionMode={selectionMode}
+              selected={selectedIds?.has(item.id)}
+              onSelectionToggle={onSelectionToggle}
             />
           ))}
         </div>

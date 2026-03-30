@@ -7,6 +7,9 @@ interface SwipeableListItemProps {
   onToggle?: (item: ListItemData) => void;
   onDelete?: (item: ListItemData) => void;
   onLongPress?: (item: ListItemData) => void;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onSelectionToggle?: (item: ListItemData) => void;
 }
 
 const DELETE_THRESHOLD = 80;
@@ -17,6 +20,9 @@ export function SwipeableListItem({
   onToggle,
   onDelete,
   onLongPress,
+  selectionMode,
+  selected,
+  onSelectionToggle,
 }: SwipeableListItemProps) {
   const [translateX, setTranslateX] = useState(0);
   const [swiping, setSwiping] = useState(false);
@@ -36,6 +42,7 @@ export function SwipeableListItem({
   }, []);
 
   function handleTouchStart(e: React.TouchEvent) {
+    if (selectionMode) return;
     const touch = e.touches[0];
     if (!touch) return;
     startXRef.current = touch.clientX;
@@ -50,12 +57,11 @@ export function SwipeableListItem({
   }
 
   function handleTouchMove(e: React.TouchEvent) {
+    if (selectionMode) return;
     const touch = e.touches[0];
     if (!touch) return;
     currentXRef.current = touch.clientX;
-    // RTL: swipe left means positive deltaX in LTR terms, but we want to reveal from the left side
-    // In RTL, the delete button should appear on the left (start side)
-    const deltaX = startXRef.current - touch.clientX; // positive = swiped left (toward start in LTR)
+    const deltaX = startXRef.current - touch.clientX;
 
     if (Math.abs(deltaX) > 10) {
       didSwipeRef.current = true;
@@ -63,17 +69,16 @@ export function SwipeableListItem({
     }
 
     if (deltaX > 0) {
-      // Swiping left — reveal delete. Cap at DELETE_THRESHOLD + some rubber band
       const capped = Math.min(deltaX, DELETE_THRESHOLD + 20);
       setTranslateX(-capped);
       setSwiping(true);
     } else {
-      // Swiping right — allow snap back
       setTranslateX(0);
     }
   }
 
   function handleTouchEnd() {
+    if (selectionMode) return;
     clearLongPress();
 
     if (!swiping) {
@@ -84,10 +89,8 @@ export function SwipeableListItem({
     const deltaX = startXRef.current - currentXRef.current;
 
     if (deltaX >= DELETE_THRESHOLD) {
-      // Snap open to show delete button
       setTranslateX(-DELETE_THRESHOLD);
     } else {
-      // Snap back
       setTranslateX(0);
     }
     setSwiping(false);
@@ -95,7 +98,6 @@ export function SwipeableListItem({
 
   function handleDelete() {
     setDeleting(true);
-    // Animate out then fire callback
     setTimeout(() => {
       onDelete?.(item);
     }, 250);
@@ -107,6 +109,7 @@ export function SwipeableListItem({
 
   // Mouse fallback for desktop (long press only)
   function handleMouseDown() {
+    if (selectionMode) return;
     didSwipeRef.current = false;
     longPressTimer.current = setTimeout(() => {
       onLongPress?.(item);
@@ -117,29 +120,39 @@ export function SwipeableListItem({
     clearLongPress();
   }
 
+  // In selection mode, clicking toggles selection
+  function handleSelectionClick() {
+    if (selectionMode && onSelectionToggle) {
+      onSelectionToggle(item);
+    }
+  }
+
   return (
     <div
       ref={containerRef}
       className={`relative overflow-hidden transition-all ${
         deleting ? "max-h-0 opacity-0 duration-250" : "max-h-20"
       }`}
+      onClick={selectionMode ? handleSelectionClick : undefined}
     >
-      {/* Delete button behind — positioned on the left (end side in RTL) */}
-      <div className="absolute inset-y-0 end-0 flex w-20 items-center justify-center bg-red-500">
-        <button
-          type="button"
-          onClick={handleDelete}
-          className="text-[14px] font-semibold text-white"
-        >
-          הסר
-        </button>
-      </div>
+      {/* Delete button behind */}
+      {!selectionMode && (
+        <div className="absolute inset-y-0 end-0 flex w-20 items-center justify-center bg-red-500">
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="text-[14px] font-semibold text-white"
+          >
+            הסר
+          </button>
+        </div>
+      )}
 
       {/* Swipeable content */}
       <div
         className="relative z-10 bg-white"
         style={{
-          transform: `translateX(${translateX}px)`,
+          transform: selectionMode ? undefined : `translateX(${translateX}px)`,
           transition: swiping ? "none" : "transform 200ms ease-out",
         }}
         onTouchStart={handleTouchStart}
@@ -148,9 +161,15 @@ export function SwipeableListItem({
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onClick={translateX !== 0 ? handleReset : undefined}
+        onClick={!selectionMode && translateX !== 0 ? handleReset : undefined}
       >
-        <ListItem item={item} onToggle={onToggle} />
+        <ListItem
+          item={item}
+          onToggle={selectionMode ? undefined : onToggle}
+          onEdit={!selectionMode && onLongPress ? () => onLongPress(item) : undefined}
+          selectionMode={selectionMode}
+          selected={selected}
+        />
       </div>
     </div>
   );

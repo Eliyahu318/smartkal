@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { X } from "lucide-react";
+import { X, Trash2 } from "lucide-react";
 import type { ListItemData } from "./ShoppingList";
 import api from "../api/client";
 
@@ -7,9 +7,11 @@ interface ItemDetailsSheetProps {
   item: ListItemData | null;
   onClose: () => void;
   onSaved: () => void;
+  onDelete?: (item: ListItemData) => void;
 }
 
-export function ItemDetailsSheet({ item, onClose, onSaved }: ItemDetailsSheetProps) {
+export function ItemDetailsSheet({ item, onClose, onSaved, onDelete }: ItemDetailsSheetProps) {
+  const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
   const [refreshDays, setRefreshDays] = useState("");
@@ -17,6 +19,7 @@ export function ItemDetailsSheet({ item, onClose, onSaved }: ItemDetailsSheetPro
 
   useEffect(() => {
     if (item) {
+      setName(item.name);
       setQuantity(item.quantity ?? "");
       setNote(item.note ?? "");
       setRefreshDays(item.auto_refresh_days?.toString() ?? "");
@@ -28,13 +31,15 @@ export function ItemDetailsSheet({ item, onClose, onSaved }: ItemDetailsSheetPro
     setSaving(true);
 
     try {
-      // Update item details (quantity + note)
+      // Update item details (name + quantity + note)
       const hasItemChanges =
-        quantity !== (item.quantity ?? "") || note !== (item.note ?? "");
+        name !== item.name ||
+        quantity !== (item.quantity ?? "") ||
+        note !== (item.note ?? "");
 
       if (hasItemChanges) {
         await api.put(`/api/v1/list/items/${item.id}`, {
-          name: item.name,
+          name: name.trim() || item.name,
           quantity: quantity || null,
           note: note || null,
         });
@@ -55,7 +60,13 @@ export function ItemDetailsSheet({ item, onClose, onSaved }: ItemDetailsSheetPro
     } finally {
       setSaving(false);
     }
-  }, [item, quantity, note, refreshDays, onSaved, onClose]);
+  }, [item, name, quantity, note, refreshDays, onSaved, onClose]);
+
+  const handleDelete = useCallback(() => {
+    if (!item || !onDelete) return;
+    onDelete(item);
+    onClose();
+  }, [item, onDelete, onClose]);
 
   // Handle backdrop click
   function handleBackdropClick(e: React.MouseEvent) {
@@ -81,7 +92,7 @@ export function ItemDetailsSheet({ item, onClose, onSaved }: ItemDetailsSheetPro
       >
         {/* Handle + close */}
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-gray-900">{item.name}</h3>
+          <div className="flex-1" />
           <button
             type="button"
             onClick={onClose}
@@ -94,6 +105,20 @@ export function ItemDetailsSheet({ item, onClose, onSaved }: ItemDetailsSheetPro
 
         {/* Form fields */}
         <div className="space-y-4">
+          {/* Name (editable) */}
+          <div>
+            <label className="mb-1 block text-[13px] font-medium text-gray-500">
+              שם מוצר
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-[15px] font-bold text-gray-900 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+              dir="rtl"
+            />
+          </div>
+
           {/* Quantity */}
           <div>
             <label className="mb-1 block text-[13px] font-medium text-gray-500">
@@ -161,6 +186,18 @@ export function ItemDetailsSheet({ item, onClose, onSaved }: ItemDetailsSheetPro
         >
           {saving ? "שומר..." : "שמור"}
         </button>
+
+        {/* Delete button */}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-3 text-[15px] font-semibold text-red-500 transition-colors hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4" />
+            מחק פריט
+          </button>
+        )}
       </div>
     </div>
   );

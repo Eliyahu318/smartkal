@@ -137,10 +137,10 @@ class TestValidateAndBuild:
 # --- Integration tests for parse_receipt ---
 
 
-def _make_claude_response(content: str) -> SimpleNamespace:
+def _make_claude_response(content: str, stop_reason: str = "end_turn") -> SimpleNamespace:
     """Create a mock Claude API response."""
     block = SimpleNamespace(text=content)
-    return SimpleNamespace(content=[block])
+    return SimpleNamespace(content=[block], stop_reason=stop_reason)
 
 
 class TestParseReceiptValidJSON:

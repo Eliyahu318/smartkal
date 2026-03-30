@@ -8,9 +8,12 @@ interface CategorySectionProps {
   onToggle?: (item: ListItemData) => void;
   onDelete?: (item: ListItemData) => void;
   onLongPress?: (item: ListItemData) => void;
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onSelectionToggle?: (item: ListItemData) => void;
 }
 
-export function CategorySection({ group, onToggle, onDelete, onLongPress }: CategorySectionProps) {
+export function CategorySection({ group, onToggle, onDelete, onLongPress, selectionMode, selectedIds, onSelectionToggle }: CategorySectionProps) {
   const [collapsed, setCollapsed] = useState(false);
   const label = group.category?.name ?? "ללא קטגוריה";
 
@@ -45,6 +48,9 @@ export function CategorySection({ group, onToggle, onDelete, onLongPress }: Cate
               onToggle={onToggle}
               onDelete={onDelete}
               onLongPress={onLongPress}
+              selectionMode={selectionMode}
+              selected={selectedIds?.has(item.id)}
+              onSelectionToggle={onSelectionToggle}
             />
           ))}
         </div>

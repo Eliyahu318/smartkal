@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ListChecks } from "lucide-react";
 import api from "../api/client";
 import { AddItemInput } from "../components/AddItemInput";
+import { BulkActionBar } from "../components/BulkActionBar";
 import { ItemDetailsSheet } from "../components/ItemDetailsSheet";
 import { PriceComparisonCard } from "../components/PriceComparisonCard";
 import { ShoppingList } from "../components/ShoppingList";
@@ -12,6 +14,10 @@ export function ListPage() {
   const [error, setError] = useState<string | null>(null);
   const [detailsItem, setDetailsItem] = useState<ListItemData | null>(null);
   const refreshedRef = useRef(false);
+
+  // Selection mode state
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const fetchList = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -73,8 +79,9 @@ export function ListPage() {
   }, [fetchList]);
 
   const handleLongPress = useCallback((item: ListItemData) => {
+    if (selectionMode) return;
     setDetailsItem(item);
-  }, []);
+  }, [selectionMode]);
 
   const handleDetailsSaved = useCallback(async () => {
     await fetchList();
@@ -84,18 +91,103 @@ export function ListPage() {
     await fetchList();
   }, [fetchList]);
 
+  // --- Reset all completed items ---
+  const handleResetAll = useCallback(async () => {
+    try {
+      await api.patch("/api/v1/list/items/bulk/activate");
+      await fetchList();
+    } catch {
+      setError("שגיאה באיפוס הפריטים");
+    }
+  }, [fetchList]);
+
+  // --- Selection mode ---
+  const handleSelectionToggle = useCallback((item: ListItemData) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(item.id)) {
+        next.delete(item.id);
+      } else {
+        next.add(item.id);
+      }
+      // Exit selection mode if nothing is selected
+      if (next.size === 0) {
+        setSelectionMode(false);
+      }
+      return next;
+    });
+  }, []);
+
+  const enterSelectionMode = useCallback(() => {
+    setSelectionMode(true);
+    setSelectedIds(new Set());
+  }, []);
+
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleBulkComplete = useCallback(async () => {
+    try {
+      await api.patch("/api/v1/list/items/bulk/complete", {
+        item_ids: [...selectedIds],
+      });
+      exitSelectionMode();
+      await fetchList();
+    } catch {
+      setError("שגיאה בהשלמת הפריטים");
+    }
+  }, [selectedIds, exitSelectionMode, fetchList]);
+
+  const handleBulkActivate = useCallback(async () => {
+    try {
+      await api.patch("/api/v1/list/items/bulk/activate", {
+        item_ids: [...selectedIds],
+      });
+      exitSelectionMode();
+      await fetchList();
+    } catch {
+      setError("שגיאה בהפעלת הפריטים");
+    }
+  }, [selectedIds, exitSelectionMode, fetchList]);
+
+  const handleBulkDelete = useCallback(async () => {
+    try {
+      await api.post("/api/v1/list/items/bulk/delete", {
+        item_ids: [...selectedIds],
+      });
+      exitSelectionMode();
+      await fetchList();
+    } catch {
+      setError("שגיאה במחיקת הפריטים");
+    }
+  }, [selectedIds, exitSelectionMode, fetchList]);
+
   return (
     <div className="pt-14">
       {/* Header */}
-      <div className="px-5 pb-3">
+      <div className="flex items-center px-5 pb-3">
         <h1 className="text-2xl font-bold">רשימת קניות</h1>
+        <div className="flex-1" />
+        {!selectionMode && data && (data.total_active > 0 || data.total_completed > 0) && (
+          <button
+            type="button"
+            onClick={enterSelectionMode}
+            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            aria-label="בחירה מרובה"
+            title="בחירה מרובה"
+          >
+            <ListChecks className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Price comparison card — hidden when no price data */}
       <PriceComparisonCard />
 
       {/* Add item input */}
-      <AddItemInput onItemAdded={handleItemAdded} />
+      {!selectionMode && <AddItemInput onItemAdded={handleItemAdded} />}
 
       {/* Loading */}
       {loading && (
@@ -116,6 +208,21 @@ export function ListPage() {
           onToggle={handleToggle}
           onDelete={handleDelete}
           onLongPress={handleLongPress}
+          onResetAll={handleResetAll}
+          selectionMode={selectionMode}
+          selectedIds={selectedIds}
+          onSelectionToggle={handleSelectionToggle}
+        />
+      )}
+
+      {/* Bulk action bar */}
+      {selectionMode && (
+        <BulkActionBar
+          selectedCount={selectedIds.size}
+          onComplete={handleBulkComplete}
+          onActivate={handleBulkActivate}
+          onDelete={handleBulkDelete}
+          onCancel={exitSelectionMode}
         />
       )}
 
@@ -124,6 +231,7 @@ export function ListPage() {
         item={detailsItem}
         onClose={() => setDetailsItem(null)}
         onSaved={handleDetailsSaved}
+        onDelete={handleDelete}
       />
     </div>
   );

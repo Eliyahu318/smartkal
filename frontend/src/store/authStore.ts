@@ -10,18 +10,13 @@ export interface User {
   is_active: boolean;
 }
 
-interface TokenPair {
-  access_token: string;
-  refresh_token: string;
-}
-
 interface AuthState {
   /** Current user — null means not authenticated */
   user: User | null;
   /** True while we are verifying an existing session on app boot */
   initializing: boolean;
-  /** In-memory tokens (never persisted to localStorage) */
-  _tokens: TokenPair | null;
+  /** In-memory access token (refresh token lives in httpOnly cookie) */
+  _accessToken: string | null;
   /** Whether user has completed the onboarding flow */
   onboardingComplete: boolean;
 
@@ -46,21 +41,16 @@ const ONBOARDING_KEY = "smartkal_onboarded";
 export const useAuthStore = create<AuthState>()((set, get) => ({
   user: null,
   initializing: true,
-  _tokens: null,
+  _accessToken: null,
   onboardingComplete: localStorage.getItem(ONBOARDING_KEY) === "1",
 
   loginWithGoogle: async (idToken: string) => {
     const { data } = await api.post<{
       access_token: string;
-      refresh_token: string;
       token_type: string;
     }>("/api/v1/auth/google", { id_token: idToken });
 
-    const tokens: TokenPair = {
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-    };
-    set({ _tokens: tokens });
+    set({ _accessToken: data.access_token });
 
     // Fetch user profile
     await get().fetchMe();
@@ -69,38 +59,24 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   loginAsGuest: async () => {
     const { data } = await api.post<{
       access_token: string;
-      refresh_token: string;
       token_type: string;
     }>("/api/v1/auth/guest", {});
 
-    const tokens: TokenPair = {
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-    };
-    set({ _tokens: tokens });
+    set({ _accessToken: data.access_token });
 
     await get().fetchMe();
   },
 
   refreshTokens: async () => {
-    const tokens = get()._tokens;
-    if (!tokens?.refresh_token) return null;
-
     try {
+      // Refresh token is sent automatically via httpOnly cookie
       const { data } = await api.post<{
         access_token: string;
-        refresh_token: string;
         token_type: string;
-      }>("/api/v1/auth/refresh", {
-        refresh_token: tokens.refresh_token,
-      });
+      }>("/api/v1/auth/refresh");
 
-      const newTokens: TokenPair = {
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      };
-      set({ _tokens: newTokens });
-      return newTokens.access_token;
+      set({ _accessToken: data.access_token });
+      return data.access_token;
     } catch {
       // Refresh failed — clear state
       get().logout();
@@ -114,13 +90,26 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   },
 
   logout: () => {
-    set({ user: null, _tokens: null });
+    // Fire-and-forget: clear the httpOnly cookie on the server
+    api.post("/api/v1/auth/logout").catch(() => {});
+    set({ user: null, _accessToken: null });
   },
 
   initialize: async () => {
-    // Tokens live only in memory — on page reload there is nothing to
-    // restore, so we simply mark init as done.
-    set({ initializing: false });
+    // Try to restore the session using the httpOnly refresh token cookie.
+    try {
+      const { data } = await api.post<{
+        access_token: string;
+        token_type: string;
+      }>("/api/v1/auth/refresh");
+
+      set({ _accessToken: data.access_token });
+      await get().fetchMe();
+    } catch {
+      // No valid session — user needs to log in
+    } finally {
+      set({ initializing: false });
+    }
   },
 
   completeOnboarding: () => {
@@ -131,7 +120,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 
 // ---------- Wire the auth bridge so the Axios interceptor can access tokens ----------
 registerAuthBridge({
-  getAccessToken: () => useAuthStore.getState()._tokens?.access_token ?? null,
+  getAccessToken: () => useAuthStore.getState()._accessToken,
   attemptTokenRefresh: () => useAuthStore.getState().refreshTokens(),
   forceLogout: () => useAuthStore.getState().logout(),
 });

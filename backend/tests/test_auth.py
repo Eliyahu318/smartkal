@@ -291,8 +291,10 @@ class TestAuthEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
-        assert "refresh_token" in data
         assert data["token_type"] == "bearer"
+
+        # Refresh token is set as httpOnly cookie
+        assert "refresh_token" in response.cookies
 
         # Verify a User was added to the session
         assert len(added_objects) == 1
@@ -361,7 +363,7 @@ class TestAuthEndpoints:
 
     @pytest.mark.anyio
     async def test_refresh_with_valid_token(self) -> None:
-        """POST /api/v1/auth/refresh with valid refresh token returns new pair."""
+        """POST /api/v1/auth/refresh with valid refresh token cookie returns new pair."""
         fake_user_id = uuid.uuid4()
         refresh = create_refresh_token(fake_user_id)
 
@@ -387,13 +389,14 @@ class TestAuthEndpoints:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/auth/refresh",
-                json={"refresh_token": refresh},
+                cookies={"refresh_token": refresh},
             )
 
         assert response.status_code == 200
         data = response.json()
         assert "access_token" in data
-        assert "refresh_token" in data
+        # New refresh token is set as httpOnly cookie
+        assert "refresh_token" in response.cookies
 
     @pytest.mark.anyio
     async def test_refresh_with_access_token_fails(self) -> None:
@@ -406,7 +409,7 @@ class TestAuthEndpoints:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/auth/refresh",
-                json={"refresh_token": access},
+                cookies={"refresh_token": access},
             )
 
         assert response.status_code == 401
@@ -421,8 +424,17 @@ class TestAuthEndpoints:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/auth/refresh",
-                json={"refresh_token": "garbage-token"},
+                cookies={"refresh_token": "garbage-token"},
             )
+        assert response.status_code == 401
+
+    @pytest.mark.anyio
+    async def test_refresh_without_cookie_fails(self) -> None:
+        """POST /api/v1/auth/refresh without cookie returns 401."""
+        app = _make_test_app()
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post("/api/v1/auth/refresh")
         assert response.status_code == 401
 
     @pytest.mark.anyio
@@ -453,7 +465,7 @@ class TestAuthEndpoints:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
                 "/api/v1/auth/refresh",
-                json={"refresh_token": refresh},
+                cookies={"refresh_token": refresh},
             )
         assert response.status_code == 401
 

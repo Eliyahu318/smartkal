@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
-import api from "../api/client";
+import api, { getErrorMessageHe } from "../api/client";
+import { showToast } from "./Toast";
 
 interface SuggestionItem {
   name: string;
@@ -75,8 +76,8 @@ export function AddItemInput({ onItemAdded }: AddItemInputProps) {
       onItemAdded();
       // Keep input open for adding more items
       inputRef.current?.focus();
-    } catch {
-      // Error handled by Axios interceptor (toast)
+    } catch (err) {
+      showToast(getErrorMessageHe(err));
     } finally {
       setSubmitting(false);
     }
@@ -128,6 +129,7 @@ export function AddItemInput({ onItemAdded }: AddItemInputProps) {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="הוסף מוצר..."
+            data-testid="add-item-input"
             className="min-w-0 flex-1 bg-transparent text-[15px] text-gray-900 outline-none placeholder:text-gray-400"
             dir="rtl"
             disabled={submitting}
