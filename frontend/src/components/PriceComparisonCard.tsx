@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import api from "../api/client";
 
@@ -25,6 +25,7 @@ interface PriceComparisonData {
 export function PriceComparisonCard() {
   const [data, setData] = useState<PriceComparisonData | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchPrices = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -40,6 +41,18 @@ export function PriceComparisonCard() {
       // No price data available — card stays hidden
     }
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await api.post("/api/v1/prices/refresh");
+      await fetchPrices();
+    } catch {
+      // Refresh failed silently
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchPrices]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -119,6 +132,20 @@ export function PriceComparisonCard() {
               </div>
             );
           })}
+
+          {/* Refresh button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleRefresh();
+            }}
+            disabled={refreshing}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-green-200 py-2 text-[12px] font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? "מעדכן מחירים..." : "עדכן מחירים"}
+          </button>
         </div>
       )}
     </div>

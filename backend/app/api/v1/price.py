@@ -15,6 +15,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+import structlog
+
+from app.config import get_settings
 from app.core.errors import NotFoundError
 from app.db.session import get_db
 from app.dependencies import get_current_user
@@ -22,6 +25,9 @@ from app.models.list_item import ListItem
 from app.models.receipt import Receipt
 from app.models.user import User
 from app.services.basket_comparator import StoreBasket, compare_basket
+from app.services.price_comparator import fetch_prices_for_products
+
+logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
 router = APIRouter(prefix="/prices", tags=["prices"])
 
@@ -172,4 +178,52 @@ async def compare_list_prices(
         cheapest_total=comparison.cheapest_total,
         current_total=comparison.current_total,
         savings=comparison.savings,
+    )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/v1/prices/refresh
+# ---------------------------------------------------------------------------
+
+
+class PriceRefreshResponse(BaseModel):
+    refreshed_count: int
+    product_count: int
+
+
+@router.post("/refresh", response_model=PriceRefreshResponse)
+async def refresh_prices(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PriceRefreshResponse:
+    """Fetch fresh prices from SuperGET for all products in the user's active list."""
+    settings = get_settings()
+    if not settings.superget_api_key:
+        return PriceRefreshResponse(refreshed_count=0, product_count=0)
+
+    result = await db.execute(
+        select(ListItem.product_id).where(
+            ListItem.user_id == current_user.id,
+            ListItem.status == "active",
+            ListItem.product_id.isnot(None),
+        ).distinct()
+    )
+    product_ids = [row[0] for row in result.all()]
+
+    if not product_ids:
+        return PriceRefreshResponse(refreshed_count=0, product_count=0)
+
+    results = await fetch_prices_for_products(db, product_ids)
+    refreshed = sum(1 for r in results if r.matched)
+
+    await logger.ainfo(
+        "prices_refreshed",
+        user_id=str(current_user.id),
+        product_count=len(product_ids),
+        refreshed_count=refreshed,
+    )
+
+    return PriceRefreshResponse(
+        refreshed_count=refreshed,
+        product_count=len(product_ids),
     )

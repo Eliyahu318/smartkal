@@ -14,11 +14,13 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import get_settings
 from app.core.errors import NotFoundError, ValidationError
 from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.models.receipt import Purchase, Receipt
 from app.models.user import User
+from app.services.price_comparator import fetch_prices_for_products
 from app.services.product_matcher import match_receipt_purchases
 from app.services.receipt_parser import ParsedReceipt, parse_receipt
 from app.utils.pdf import extract_text_from_pdf
@@ -184,6 +186,20 @@ async def upload_receipt(
     # Match purchases to products, complete matching list items
     match_counts = await match_receipt_purchases(db, receipt, current_user.id, purchases)
 
+    # Best-effort: fetch prices from SuperGET for matched products
+    settings = get_settings()
+    if settings.superget_api_key:
+        product_ids = [p.product_id for p in purchases if p.product_id]
+        if product_ids:
+            try:
+                await fetch_prices_for_products(db, product_ids)
+            except Exception as exc:
+                await logger.awarning(
+                    "price_fetch_after_receipt_failed",
+                    receipt_id=str(receipt.id),
+                    error=str(exc),
+                )
+
     await logger.ainfo(
         "receipt_uploaded",
         receipt_id=str(receipt.id),
@@ -279,6 +295,21 @@ async def reprocess_receipt(
 
     purchases = list(receipt.purchases)
     match_counts = await match_receipt_purchases(db, receipt, current_user.id, purchases)
+
+    # Best-effort: fetch prices from SuperGET for matched products
+    settings = get_settings()
+    if settings.superget_api_key:
+        product_ids = [p.product_id for p in purchases if p.product_id]
+        if product_ids:
+            try:
+                await fetch_prices_for_products(db, product_ids)
+            except Exception as exc:
+                await logger.awarning(
+                    "price_fetch_after_reprocess_failed",
+                    receipt_id=str(receipt.id),
+                    error=str(exc),
+                )
+
     await db.commit()
 
     await logger.ainfo(

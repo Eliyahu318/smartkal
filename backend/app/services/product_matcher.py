@@ -229,11 +229,22 @@ async def _complete_matching_list_items(
         existing_completed = result.scalar_one_or_none()
 
         if existing_completed is None:
-            default_category_id = await _get_default_category_id(db, user_id)
+            # Auto-categorize via Claude API (same as manual item addition)
+            from app.services.categorizer import auto_categorize
+
+            category_id = product.category_id
+            if category_id is None:
+                category_id = await auto_categorize(db, user_id, product.name)
+                # Cache on the product so future matches skip the API call
+                if category_id is not None:
+                    product.category_id = category_id
+            if category_id is None:
+                category_id = await _get_default_category_id(db, user_id)
+
             new_item = ListItem(
                 user_id=user_id,
                 product_id=product.id,
-                category_id=product.category_id or default_category_id,
+                category_id=category_id,
                 name=product.name,
                 quantity=str(purchase_quantity) if purchase_quantity != 1.0 else None,
                 status=ListItemStatus.COMPLETED.value,
