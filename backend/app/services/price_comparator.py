@@ -383,3 +383,50 @@ async def fetch_prices_for_products(
         results.append(price_result)
 
     return results
+
+
+async def save_receipt_prices_to_history(
+    db: AsyncSession,
+    purchases: list,
+    store_name: str | None,
+    store_branch: str | None = None,
+    receipt_date: datetime | None = None,
+) -> int:
+    """Save prices from a parsed receipt to PriceHistory.
+
+    Extracts unit_price from each matched purchase and writes to PriceHistory
+    with source='receipt'. This allows price comparison to work from receipt
+    data alone, without needing the SuperGET API.
+
+    Returns the number of price records saved.
+    """
+    if not store_name:
+        return 0
+
+    observed_at = receipt_date or datetime.now(timezone.utc)
+    saved_count = 0
+
+    for purchase in purchases:
+        if not purchase.product_id or not purchase.unit_price:
+            continue
+
+        record = PriceHistory(
+            product_id=purchase.product_id,
+            store_name=store_name,
+            store_branch=store_branch,
+            price=purchase.unit_price,
+            source="receipt",
+            observed_at=observed_at,
+        )
+        db.add(record)
+        saved_count += 1
+
+    if saved_count > 0:
+        await db.flush()
+        await logger.ainfo(
+            "receipt_prices_saved_to_history",
+            store=store_name,
+            saved_count=saved_count,
+        )
+
+    return saved_count

@@ -20,7 +20,7 @@ from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.models.receipt import Purchase, Receipt
 from app.models.user import User
-from app.services.price_comparator import fetch_prices_for_products
+from app.services.price_comparator import fetch_prices_for_products, save_receipt_prices_to_history
 from app.services.product_matcher import match_receipt_purchases
 from app.services.receipt_parser import ParsedReceipt, parse_receipt
 from app.utils.pdf import extract_text_from_pdf
@@ -186,6 +186,11 @@ async def upload_receipt(
     # Match purchases to products, complete matching list items
     match_counts = await match_receipt_purchases(db, receipt, current_user.id, purchases)
 
+    # Save receipt prices to PriceHistory for comparison
+    await save_receipt_prices_to_history(
+        db, purchases, receipt.store_name, receipt.store_branch,
+    )
+
     # Best-effort: fetch prices from SuperGET for matched products
     settings = get_settings()
     if settings.superget_api_key:
@@ -295,6 +300,11 @@ async def reprocess_receipt(
 
     purchases = list(receipt.purchases)
     match_counts = await match_receipt_purchases(db, receipt, current_user.id, purchases)
+
+    # Save receipt prices to PriceHistory for comparison
+    await save_receipt_prices_to_history(
+        db, purchases, receipt.store_name, receipt.store_branch,
+    )
 
     # Best-effort: fetch prices from SuperGET for matched products
     settings = get_settings()
