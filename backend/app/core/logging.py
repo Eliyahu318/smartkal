@@ -39,7 +39,8 @@ def setup_logging(*, json_output: bool = True) -> None:
         ],
     )
 
-    handler = logging.StreamHandler(sys.stdout)
+    stream = open(sys.stdout.fileno(), mode="w", encoding="utf-8", closefd=False)  # noqa: SIM115
+    handler = logging.StreamHandler(stream)
     handler.setFormatter(formatter)
 
     root_logger = logging.getLogger()

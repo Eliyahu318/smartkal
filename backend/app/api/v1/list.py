@@ -555,6 +555,7 @@ async def complete_item(
         item.next_refresh_at = next_refresh_at
 
     await db.flush()
+    await db.refresh(item)
 
     await logger.ainfo(
         "item_completed",
@@ -589,6 +590,7 @@ async def activate_item(
     item.next_refresh_at = None
 
     await db.flush()
+    await db.refresh(item)
 
     await logger.ainfo("item_activated", item_id=str(item_id))
 

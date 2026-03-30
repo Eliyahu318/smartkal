@@ -48,7 +48,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.add_middleware(RequestIDMiddleware)
-    app.add_middleware(RateLimitMiddleware)
+    if settings.is_production:
+        app.add_middleware(RateLimitMiddleware)
+    else:
+        app.add_middleware(RateLimitMiddleware, general_max=1000, general_window=60)
     app.add_middleware(SecurityHeadersMiddleware)
 
     # Exception handlers
