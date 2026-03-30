@@ -291,6 +291,7 @@ export function ReceiptResults({ result, onSave, saving }: ReceiptResultsProps) 
       <div className="px-5 pt-2">
         <button
           type="button"
+          data-testid="receipt-save"
           onClick={onSave}
           disabled={saving || purchases.length === 0}
           className="w-full rounded-xl bg-green-500 py-3.5 text-base font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-50"

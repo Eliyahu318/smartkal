@@ -31,6 +31,7 @@ export function ReceiptUpload({ onFileSelected, disabled }: ReceiptUploadProps) 
   return (
     <div
       {...getRootProps()}
+      data-testid="receipt-dropzone"
       className={`
         mx-5 rounded-2xl border-2 border-dashed p-8 text-center transition-colors
         ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}

@@ -1,4 +1,4 @@
-.PHONY: install install-backend install-frontend dev dev-backend dev-frontend test test-backend lint typecheck db-up db-down
+.PHONY: install install-backend install-frontend dev dev-backend dev-frontend test test-backend test-e2e test-e2e-ui test-all lint typecheck db-up db-down
 
 # Install all dependencies
 install: install-backend install-frontend
@@ -24,6 +24,15 @@ test: test-backend
 
 test-backend:
 	cd backend && python -m pytest --cov=app tests/
+
+# E2E Testing
+test-e2e:
+	npx playwright test
+
+test-e2e-ui:
+	npx playwright test --ui
+
+test-all: test-backend test-e2e
 
 # Linting
 lint:

@@ -37,6 +37,8 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+playwright-report/
+test-results/
 
 # Logs
 *.log

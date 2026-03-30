@@ -7,10 +7,10 @@ interface NavItem {
   icon: typeof ClipboardList;
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { path: "/list", label: "רשימה", icon: ClipboardList },
-  { path: "/receipts", label: "קבלות", icon: Receipt },
-  { path: "/more", label: "עוד", icon: MoreHorizontal },
+const NAV_ITEMS: (NavItem & { testId: string })[] = [
+  { path: "/list", label: "רשימה", icon: ClipboardList, testId: "nav-list" },
+  { path: "/receipts", label: "קבלות", icon: Receipt, testId: "nav-receipts" },
+  { path: "/more", label: "עוד", icon: MoreHorizontal, testId: "nav-more" },
 ];
 
 export function BottomNav() {
@@ -26,6 +26,7 @@ export function BottomNav() {
         return (
           <button
             key={item.path}
+            data-testid={item.testId}
             onClick={() => navigate(item.path)}
             className={`flex flex-1 flex-col items-center gap-0.5 pb-2 pt-3 text-xs transition-colors ${
               isActive
