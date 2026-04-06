@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     # Cookies — derived from environment by default (see _derive_defaults)
     cookie_secure: bool | None = None
+    cookie_samesite: str | None = None
 
     # Environment
     environment: str = "development"
@@ -45,6 +46,11 @@ class Settings(BaseSettings):
         """
         if self.cookie_secure is None:
             self.cookie_secure = self.is_production
+        if self.cookie_samesite is None:
+            # Production deploys frontend/backend on different subdomains
+            # (e.g. onrender.com), which are cross-site due to PSL.
+            # SameSite=None (with Secure=True) allows cross-site cookies.
+            self.cookie_samesite = "none" if self.is_production else "lax"
         return self
 
     @property

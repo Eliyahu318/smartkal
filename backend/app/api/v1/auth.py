@@ -37,7 +37,7 @@ def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> N
         value=token,
         httponly=True,
         secure=bool(settings.cookie_secure),
-        samesite="lax",
+        samesite=settings.cookie_samesite or "lax",
         path="/api/v1/auth",
         max_age=_COOKIE_MAX_AGE,
     )
@@ -50,7 +50,7 @@ def _clear_refresh_cookie(response: Response, settings: Settings) -> None:
         path="/api/v1/auth",
         httponly=True,
         secure=bool(settings.cookie_secure),
-        samesite="lax",
+        samesite=settings.cookie_samesite or "lax",
     )
 
 
