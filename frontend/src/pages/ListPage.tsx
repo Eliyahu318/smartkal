@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ListChecks } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ListChecks, X, CheckSquare } from "lucide-react";
 import api, { getErrorMessageHe } from "../api/client";
 import { AddItemInput } from "../components/AddItemInput";
 import { BulkActionBar } from "../components/BulkActionBar";
@@ -133,10 +133,6 @@ export function ListPage() {
       } else {
         next.add(item.id);
       }
-      // Exit selection mode if nothing is selected
-      if (next.size === 0) {
-        setSelectionMode(false);
-      }
       return next;
     });
   }, []);
@@ -187,22 +183,78 @@ export function ListPage() {
     }
   }, [selectedIds, exitSelectionMode, fetchList]);
 
+  // Collect all active item IDs for "select all"
+  const allActiveIds = useMemo(() => {
+    if (!data) return new Set<string>();
+    const ids = new Set<string>();
+    for (const group of data.groups) {
+      for (const item of group.items) {
+        if (item.status === "active") {
+          ids.add(item.id);
+        }
+      }
+    }
+    return ids;
+  }, [data]);
+
+  const allSelected = allActiveIds.size > 0 && selectedIds.size >= allActiveIds.size;
+
+  const handleSelectAll = useCallback(() => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allActiveIds));
+    }
+  }, [allSelected, allActiveIds]);
+
   return (
     <div className="pt-14">
       {/* Header */}
       <div className="flex items-center px-5 pb-3">
-        <h1 className="text-2xl font-bold">רשימת קניות</h1>
-        <div className="flex-1" />
-        {!selectionMode && data && (data.total_active > 0 || data.total_completed > 0) && (
-          <button
-            type="button"
-            onClick={enterSelectionMode}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-            aria-label="בחירה מרובה"
-            title="בחירה מרובה"
-          >
-            <ListChecks className="h-5 w-5" />
-          </button>
+        {selectionMode ? (
+          <>
+            <button
+              type="button"
+              onClick={exitSelectionMode}
+              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              aria-label="ביטול בחירה"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <span className="mr-2 text-sm font-medium text-gray-500">
+              {selectedIds.size > 0 ? `${selectedIds.size} נבחרו` : "בחר פריטים"}
+            </span>
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className={`rounded-lg p-1.5 transition-colors ${
+                allSelected
+                  ? "text-green-600 hover:bg-green-50"
+                  : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              }`}
+              aria-label={allSelected ? "בטל בחירת הכל" : "בחר הכל"}
+              title={allSelected ? "בטל בחירת הכל" : "בחר הכל"}
+            >
+              <CheckSquare className="h-5 w-5" />
+            </button>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold">רשימת קניות</h1>
+            <div className="flex-1" />
+            {data && (data.total_active > 0 || data.total_completed > 0) && (
+              <button
+                type="button"
+                onClick={enterSelectionMode}
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                aria-label="בחירה מרובה"
+                title="בחירה מרובה"
+              >
+                <ListChecks className="h-5 w-5" />
+              </button>
+            )}
+          </>
         )}
       </div>
 
