@@ -227,6 +227,230 @@ class TestBasketComparator:
         assert result.current_total == Decimal("15.00")
         assert result.savings == Decimal("5.00")
 
+    @pytest.mark.anyio
+    async def test_pre_fetched_price_map_skips_db(self) -> None:
+        """When price_map is provided, no DB query is executed."""
+        from app.services.basket_comparator import compare_basket
+
+        pid1 = uuid.uuid4()
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        price_map = {
+            pid1: {
+                "רמי לוי": Decimal("10.00"),
+                "שופרסל": Decimal("12.00"),
+            },
+        }
+
+        result = await compare_basket(mock_db, [pid1], price_map=price_map)
+
+        # DB should not have been called
+        mock_db.execute.assert_not_called()
+        assert result.total_items == 1
+        assert result.matched_items == 1
+        assert result.cheapest_store == "רמי לוי"
+        assert result.savings == Decimal("2.00")
+
+    @pytest.mark.anyio
+    async def test_pre_fetched_price_map_with_current_store(self) -> None:
+        """price_map works correctly with current_store param."""
+        from app.services.basket_comparator import compare_basket
+
+        pid1 = uuid.uuid4()
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        price_map = {
+            pid1: {
+                "רמי לוי": Decimal("8.00"),
+                "שופרסל": Decimal("15.00"),
+            },
+        }
+
+        result = await compare_basket(
+            mock_db, [pid1], current_store="שופרסל", price_map=price_map
+        )
+
+        assert result.cheapest_store == "רמי לוי"
+        assert result.current_total == Decimal("15.00")
+        assert result.savings == Decimal("7.00")
+
+
+# ---------------------------------------------------------------------------
+# Unit tests — basket_comparator.compare_basket_by_category
+# ---------------------------------------------------------------------------
+
+
+class TestBasketComparatorByCategory:
+    """Test per-category basket comparison logic."""
+
+    @pytest.mark.anyio
+    async def test_empty_map(self) -> None:
+        """Empty product-category map returns empty list."""
+        from app.services.basket_comparator import compare_basket_by_category
+
+        mock_db = AsyncMock(spec=AsyncSession)
+        result = await compare_basket_by_category(mock_db, {})
+
+        assert result == []
+
+    @pytest.mark.anyio
+    async def test_single_category_two_stores(self) -> None:
+        """Single category with two stores returns one recommendation."""
+        from app.services.basket_comparator import compare_basket_by_category
+
+        pid1 = uuid.uuid4()
+        pid2 = uuid.uuid4()
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        price_map = {
+            pid1: {"רמי לוי": Decimal("10.00"), "שופרסל": Decimal("12.00")},
+            pid2: {"רמי לוי": Decimal("8.00"), "שופרסל": Decimal("7.00")},
+        }
+        product_category_map = {pid1: "מוצרי חלב", pid2: "מוצרי חלב"}
+
+        result = await compare_basket_by_category(
+            mock_db, product_category_map, price_map=price_map
+        )
+
+        assert len(result) == 1
+        assert result[0].category_name == "מוצרי חלב"
+        # רמי לוי: 10+8=18, שופרסל: 12+7=19 → cheapest is רמי לוי
+        assert result[0].cheapest_store == "רמי לוי"
+        assert result[0].cheapest_total == Decimal("18.00")
+        assert result[0].savings == Decimal("1.00")
+
+    @pytest.mark.anyio
+    async def test_multiple_categories_sorted_by_savings(self) -> None:
+        """Multiple categories sorted by savings descending."""
+        from app.services.basket_comparator import compare_basket_by_category
+
+        pid1 = uuid.uuid4()
+        pid2 = uuid.uuid4()
+        pid3 = uuid.uuid4()
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        price_map = {
+            # Dairy: savings = 20-15 = 5
+            pid1: {"רמי לוי": Decimal("15.00"), "שופרסל": Decimal("20.00")},
+            # Vegetables: savings = 12-8 = 4
+            pid2: {"רמי לוי": Decimal("8.00"), "שופרסל": Decimal("12.00")},
+            # Bread: savings = 10-3 = 7
+            pid3: {"רמי לוי": Decimal("3.00"), "שופרסל": Decimal("10.00")},
+        }
+        product_category_map = {
+            pid1: "מוצרי חלב",
+            pid2: "ירקות",
+            pid3: "לחמים",
+        }
+
+        result = await compare_basket_by_category(
+            mock_db, product_category_map, price_map=price_map
+        )
+
+        assert len(result) == 3
+        # Sorted by savings desc: bread (7), dairy (5), vegetables (4)
+        assert result[0].category_name == "לחמים"
+        assert result[0].savings == Decimal("7.00")
+        assert result[1].category_name == "מוצרי חלב"
+        assert result[1].savings == Decimal("5.00")
+        assert result[2].category_name == "ירקות"
+        assert result[2].savings == Decimal("4.00")
+
+    @pytest.mark.anyio
+    async def test_single_store_category_excluded(self) -> None:
+        """Categories with only one store are excluded (no comparison possible)."""
+        from app.services.basket_comparator import compare_basket_by_category
+
+        pid1 = uuid.uuid4()
+        pid2 = uuid.uuid4()
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        price_map = {
+            # Dairy has two stores → included
+            pid1: {"רמי לוי": Decimal("10.00"), "שופרסל": Decimal("12.00")},
+            # Vegetables has only one store → excluded
+            pid2: {"רמי לוי": Decimal("8.00")},
+        }
+        product_category_map = {pid1: "מוצרי חלב", pid2: "ירקות"}
+
+        result = await compare_basket_by_category(
+            mock_db, product_category_map, price_map=price_map
+        )
+
+        assert len(result) == 1
+        assert result[0].category_name == "מוצרי חלב"
+
+    @pytest.mark.anyio
+    async def test_no_price_data_for_products(self) -> None:
+        """Products with no price history return empty recommendations."""
+        from app.services.basket_comparator import compare_basket_by_category
+
+        pid1 = uuid.uuid4()
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Empty price map — no prices found
+        price_map: dict[uuid.UUID, dict[str, Decimal]] = {}
+        product_category_map = {pid1: "מוצרי חלב"}
+
+        result = await compare_basket_by_category(
+            mock_db, product_category_map, price_map=price_map
+        )
+
+        assert result == []
+
+    @pytest.mark.anyio
+    async def test_different_cheapest_store_per_category(self) -> None:
+        """Different categories can have different cheapest stores."""
+        from app.services.basket_comparator import compare_basket_by_category
+
+        pid1 = uuid.uuid4()
+        pid2 = uuid.uuid4()
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        price_map = {
+            # Dairy: שופרסל is cheaper
+            pid1: {"רמי לוי": Decimal("20.00"), "שופרסל": Decimal("15.00")},
+            # Vegetables: רמי לוי is cheaper
+            pid2: {"רמי לוי": Decimal("5.00"), "שופרסל": Decimal("9.00")},
+        }
+        product_category_map = {pid1: "מוצרי חלב", pid2: "ירקות"}
+
+        result = await compare_basket_by_category(
+            mock_db, product_category_map, price_map=price_map
+        )
+
+        assert len(result) == 2
+        dairy = next(r for r in result if r.category_name == "מוצרי חלב")
+        veggies = next(r for r in result if r.category_name == "ירקות")
+        assert dairy.cheapest_store == "שופרסל"
+        assert veggies.cheapest_store == "רמי לוי"
+
+    @pytest.mark.anyio
+    async def test_fetches_price_map_when_not_provided(self) -> None:
+        """When price_map is None, fetches from DB."""
+        from app.services.basket_comparator import compare_basket_by_category
+
+        pid1 = uuid.uuid4()
+        mock_db = AsyncMock(spec=AsyncSession)
+
+        # Simulate DB returning prices for two stores
+        mock_result = MagicMock()
+        mock_result.all.return_value = [
+            (pid1, "רמי לוי", Decimal("10.00")),
+            (pid1, "שופרסל", Decimal("12.00")),
+        ]
+        mock_db.execute.return_value = mock_result
+
+        product_category_map = {pid1: "מוצרי חלב"}
+        result = await compare_basket_by_category(
+            mock_db, product_category_map
+        )
+
+        # DB was called since no price_map provided
+        mock_db.execute.assert_called()
+        assert len(result) == 1
+        assert result[0].cheapest_store == "רמי לוי"
+
 
 # ---------------------------------------------------------------------------
 # Integration tests — compare-receipt endpoint

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ListChecks } from "lucide-react";
-import api from "../api/client";
+import api, { getErrorMessageHe } from "../api/client";
 import { AddItemInput } from "../components/AddItemInput";
 import { BulkActionBar } from "../components/BulkActionBar";
 import { ItemDetailsSheet } from "../components/ItemDetailsSheet";
@@ -64,8 +64,8 @@ export function ListPage() {
     try {
       await api.patch(endpoint);
       await fetchList();
-    } catch {
-      setError("שגיאה בעדכון הפריט");
+    } catch (err) {
+      setError(getErrorMessageHe(err));
     }
   }, [fetchList]);
 
@@ -73,8 +73,8 @@ export function ListPage() {
     try {
       await api.delete(`/api/v1/list/items/${item.id}`);
       await fetchList();
-    } catch {
-      setError("שגיאה במחיקת הפריט");
+    } catch (err) {
+      setError(getErrorMessageHe(err));
     }
   }, [fetchList]);
 
@@ -96,8 +96,8 @@ export function ListPage() {
     try {
       await api.patch("/api/v1/list/items/bulk/activate");
       await fetchList();
-    } catch {
-      setError("שגיאה באיפוס הפריטים");
+    } catch (err) {
+      setError(getErrorMessageHe(err));
     }
   }, [fetchList]);
 
@@ -117,8 +117,8 @@ export function ListPage() {
         // Refresh list after each batch so user sees progress
         await fetchList();
       }
-    } catch {
-      setError("שגיאה בסיווג מחדש");
+    } catch (err) {
+      setError(getErrorMessageHe(err));
     } finally {
       setRecategorizing(false);
     }
@@ -158,8 +158,8 @@ export function ListPage() {
       });
       exitSelectionMode();
       await fetchList();
-    } catch {
-      setError("שגיאה בהשלמת הפריטים");
+    } catch (err) {
+      setError(getErrorMessageHe(err));
     }
   }, [selectedIds, exitSelectionMode, fetchList]);
 
@@ -170,8 +170,8 @@ export function ListPage() {
       });
       exitSelectionMode();
       await fetchList();
-    } catch {
-      setError("שגיאה בהפעלת הפריטים");
+    } catch (err) {
+      setError(getErrorMessageHe(err));
     }
   }, [selectedIds, exitSelectionMode, fetchList]);
 
@@ -182,8 +182,8 @@ export function ListPage() {
       });
       exitSelectionMode();
       await fetchList();
-    } catch {
-      setError("שגיאה במחיקת הפריטים");
+    } catch (err) {
+      setError(getErrorMessageHe(err));
     }
   }, [selectedIds, exitSelectionMode, fetchList]);
 

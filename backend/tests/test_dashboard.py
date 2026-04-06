@@ -1,7 +1,7 @@
 """Tests for US-024: Dashboard backend API.
 
-Tests spending by category, spending by store, and monthly trend endpoints
-with correct aggregation from receipt/purchase data.
+Tests spending by category, spending by store, monthly trend endpoints,
+and smart basket comparison with per-category recommendations.
 """
 
 from __future__ import annotations
@@ -393,3 +393,295 @@ class TestSpendingTrends:
         data = response.json()
         assert len(data["months"]) == 1
         assert data["months"][0]["total"] == 1200.0
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/dashboard/smart-basket
+# ---------------------------------------------------------------------------
+
+
+def _mock_list_item(
+    product_id: uuid.UUID | None = None,
+    category_name: str = "מוצרי חלב",
+    status: str = "active",
+) -> MagicMock:
+    """Create a mock ListItem with an attached category."""
+    item = MagicMock()
+    item.product_id = product_id
+    item.status = status
+    item.user_id = FAKE_USER_ID
+    if category_name:
+        item.category = MagicMock()
+        item.category.name = category_name
+    else:
+        item.category = None
+    return item
+
+
+class TestSmartBasket:
+    """Test GET /api/v1/dashboard/smart-basket endpoint."""
+
+    @pytest.mark.anyio
+    @patch("app.api.v1.dashboard.compare_basket_by_category")
+    @patch("app.api.v1.dashboard.compare_basket")
+    @patch("app.api.v1.dashboard._get_latest_prices_by_product")
+    async def test_smart_basket_with_data(
+        self,
+        mock_prices: AsyncMock,
+        mock_compare: AsyncMock,
+        mock_by_category: AsyncMock,
+    ) -> None:
+        """Returns store comparisons and category recommendations."""
+        from app.services.basket_comparator import (
+            BasketComparison,
+            CategoryRecommendation,
+            StoreBasket,
+        )
+
+        pid1 = uuid.uuid4()
+        pid2 = uuid.uuid4()
+
+        # Mock items returned by DB query
+        items = [
+            _mock_list_item(product_id=pid1, category_name="מוצרי חלב"),
+            _mock_list_item(product_id=pid2, category_name="ירקות"),
+        ]
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = items
+        mock_session.execute.return_value = mock_result
+
+        # Mock price map
+        price_map = {
+            pid1: {"רמי לוי": Decimal("10.00"), "שופרסל": Decimal("12.00")},
+            pid2: {"רמי לוי": Decimal("8.00"), "שופרסל": Decimal("7.00")},
+        }
+        mock_prices.return_value = price_map
+
+        # Mock compare_basket result
+        mock_compare.return_value = BasketComparison(
+            comparisons=[
+                StoreBasket(store_name="רמי לוי", total=Decimal("18.00"), matched_count=2),
+                StoreBasket(store_name="שופרסל", total=Decimal("19.00"), matched_count=2),
+            ],
+            total_items=2,
+            matched_items=2,
+            cheapest_store="רמי לוי",
+            cheapest_total=Decimal("18.00"),
+            current_total=Decimal("19.00"),
+            savings=Decimal("1.00"),
+        )
+
+        # Mock per-category recommendations
+        mock_by_category.return_value = [
+            CategoryRecommendation(
+                category_name="מוצרי חלב",
+                cheapest_store="רמי לוי",
+                cheapest_total=Decimal("10.00"),
+                savings=Decimal("2.00"),
+            ),
+            CategoryRecommendation(
+                category_name="ירקות",
+                cheapest_store="שופרסל",
+                cheapest_total=Decimal("7.00"),
+                savings=Decimal("1.00"),
+            ),
+        ]
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/dashboard/smart-basket",
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Overall comparison
+        assert data["cheapest_store"] == "רמי לוי"
+        assert data["cheapest_total"] == 18.0
+        assert data["savings"] == 1.0
+        assert data["total_items"] == 2
+        assert data["matched_items"] == 2
+        assert len(data["comparisons"]) == 2
+        assert data["comparisons"][0]["store_name"] == "רמי לוי"
+        assert data["comparisons"][0]["total"] == 18.0
+        assert data["comparisons"][0]["matched_count"] == 2
+
+        # Coverage text
+        assert data["coverage_text"] == "השוואה על כל 2 המוצרים"
+
+        # Category recommendations
+        assert len(data["category_recommendations"]) == 2
+        assert data["category_recommendations"][0]["category_name"] == "מוצרי חלב"
+        assert data["category_recommendations"][0]["cheapest_store"] == "רמי לוי"
+        assert data["category_recommendations"][0]["savings"] == 2.0
+        assert data["category_recommendations"][1]["category_name"] == "ירקות"
+        assert data["category_recommendations"][1]["cheapest_store"] == "שופרסל"
+
+        # Verify price_map was passed to both functions
+        mock_compare.assert_called_once()
+        _, kwargs = mock_compare.call_args
+        assert kwargs["price_map"] is price_map
+
+        mock_by_category.assert_called_once()
+        _, kwargs = mock_by_category.call_args
+        assert kwargs["price_map"] is price_map
+
+    @pytest.mark.anyio
+    @patch("app.api.v1.dashboard.compare_basket_by_category")
+    @patch("app.api.v1.dashboard.compare_basket")
+    @patch("app.api.v1.dashboard._get_latest_prices_by_product")
+    async def test_smart_basket_empty_list(
+        self,
+        mock_prices: AsyncMock,
+        mock_compare: AsyncMock,
+        mock_by_category: AsyncMock,
+    ) -> None:
+        """No active list items returns empty response."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = mock_result
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/dashboard/smart-basket",
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_items"] == 0
+        assert data["matched_items"] == 0
+        assert data["comparisons"] == []
+        assert data["cheapest_store"] == ""
+        assert data["category_recommendations"] == []
+
+        # No service calls made
+        mock_prices.assert_not_called()
+        mock_compare.assert_not_called()
+        mock_by_category.assert_not_called()
+
+    @pytest.mark.anyio
+    @patch("app.api.v1.dashboard.compare_basket_by_category")
+    @patch("app.api.v1.dashboard.compare_basket")
+    @patch("app.api.v1.dashboard._get_latest_prices_by_product")
+    async def test_smart_basket_items_without_products(
+        self,
+        mock_prices: AsyncMock,
+        mock_compare: AsyncMock,
+        mock_by_category: AsyncMock,
+    ) -> None:
+        """Items without product_id are counted but not compared."""
+        # 3 items, but only 1 has a product_id
+        pid1 = uuid.uuid4()
+        items = [
+            _mock_list_item(product_id=pid1, category_name="מוצרי חלב"),
+            _mock_list_item(product_id=None, category_name="ירקות"),
+            _mock_list_item(product_id=None, category_name="לחמים"),
+        ]
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = items
+        mock_session.execute.return_value = mock_result
+
+        mock_prices.return_value = {
+            pid1: {"רמי לוי": Decimal("10.00")},
+        }
+
+        from app.services.basket_comparator import (
+            BasketComparison,
+            StoreBasket,
+        )
+
+        mock_compare.return_value = BasketComparison(
+            comparisons=[
+                StoreBasket(store_name="רמי לוי", total=Decimal("10.00"), matched_count=1),
+            ],
+            total_items=1,
+            matched_items=1,
+            cheapest_store="רמי לוי",
+            cheapest_total=Decimal("10.00"),
+            current_total=Decimal("10.00"),
+            savings=Decimal("0"),
+        )
+        mock_by_category.return_value = []
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/dashboard/smart-basket",
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        # total_items counts ALL items, not just those with products
+        assert data["total_items"] == 3
+        assert data["matched_items"] == 1
+        # Partial coverage text
+        assert "1 מתוך 3" in data["coverage_text"]
+        assert "33%" in data["coverage_text"]
+
+    @pytest.mark.anyio
+    @patch("app.api.v1.dashboard.compare_basket_by_category")
+    @patch("app.api.v1.dashboard.compare_basket")
+    @patch("app.api.v1.dashboard._get_latest_prices_by_product")
+    async def test_smart_basket_items_without_category(
+        self,
+        mock_prices: AsyncMock,
+        mock_compare: AsyncMock,
+        mock_by_category: AsyncMock,
+    ) -> None:
+        """Items without a category are grouped under 'אחר'."""
+        pid1 = uuid.uuid4()
+        items = [
+            _mock_list_item(product_id=pid1, category_name=""),
+        ]
+        # Set category to None to simulate uncategorized item
+        items[0].category = None
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = items
+        mock_session.execute.return_value = mock_result
+
+        mock_prices.return_value = {}
+
+        from app.services.basket_comparator import BasketComparison
+
+        mock_compare.return_value = BasketComparison(total_items=1, matched_items=0)
+        mock_by_category.return_value = []
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/dashboard/smart-basket",
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+
+        # Verify "אחר" was passed in the product_category_map
+        call_args = mock_by_category.call_args
+        # Second positional arg is product_category_map
+        product_category_map = call_args[0][1]
+        assert pid1 in product_category_map
+        assert product_category_map[pid1] == "אחר"

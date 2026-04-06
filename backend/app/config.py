@@ -1,3 +1,4 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,11 +30,22 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "http://localhost:5173"
 
-    # Cookies
-    cookie_secure: bool = True
+    # Cookies — derived from environment by default (see _derive_defaults)
+    cookie_secure: bool | None = None
 
     # Environment
     environment: str = "development"
+
+    @model_validator(mode="after")
+    def _derive_defaults(self) -> "Settings":
+        """Derive cookie_secure from environment when not explicitly set.
+
+        Development (HTTP) → Secure=False; Production (HTTPS) → Secure=True.
+        Explicit COOKIE_SECURE env var overrides this derivation.
+        """
+        if self.cookie_secure is None:
+            self.cookie_secure = self.is_production
+        return self
 
     @property
     def async_database_url(self) -> str:

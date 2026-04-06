@@ -27,10 +27,16 @@ export interface ApiError {
  */
 export function getErrorMessageHe(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    const code = (error.response?.data as { error?: { code?: string } })?.error
-      ?.code;
-    if (code && code in ERROR_MESSAGES_HE) {
-      return ERROR_MESSAGES_HE[code]!;
+    const errorBody = (
+      error.response?.data as { error?: { code?: string; message?: string } }
+    )?.error;
+    // Prefer the backend's specific Hebrew message (already message_he)
+    if (errorBody?.message) {
+      return errorBody.message;
+    }
+    // Fall back to code-based generic mapping
+    if (errorBody?.code && errorBody.code in ERROR_MESSAGES_HE) {
+      return ERROR_MESSAGES_HE[errorBody.code]!;
     }
   }
   return DEFAULT_ERROR_HE;

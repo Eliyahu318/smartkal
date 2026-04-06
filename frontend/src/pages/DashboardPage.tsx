@@ -50,6 +50,30 @@ interface TrendsResponse {
   months: MonthTrend[];
 }
 
+interface StoreComparisonItem {
+  store_name: string;
+  total: number;
+  matched_count: number;
+}
+
+interface CategoryRecommendation {
+  category_name: string;
+  cheapest_store: string;
+  cheapest_total: number;
+  savings: number;
+}
+
+interface SmartBasketResponse {
+  comparisons: StoreComparisonItem[];
+  total_items: number;
+  matched_items: number;
+  cheapest_store: string;
+  cheapest_total: number;
+  savings: number;
+  coverage_text: string;
+  category_recommendations: CategoryRecommendation[];
+}
+
 /* ---------- Chart colours ---------- */
 
 const CATEGORY_COLORS = [
@@ -87,20 +111,23 @@ export function DashboardPage() {
   const [spending, setSpending] = useState<SpendingResponse | null>(null);
   const [stores, setStores] = useState<StoresResponse | null>(null);
   const [trends, setTrends] = useState<TrendsResponse | null>(null);
+  const [smartBasket, setSmartBasket] = useState<SmartBasketResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(
     async (signal?: AbortSignal) => {
       try {
-        const [spendRes, storesRes, trendsRes] = await Promise.all([
+        const [spendRes, storesRes, trendsRes, basketRes] = await Promise.allSettled([
           api.get<SpendingResponse>(`/api/v1/dashboard/spending?period=${period}`, { signal }),
           api.get<StoresResponse>("/api/v1/dashboard/stores", { signal }),
           api.get<TrendsResponse>("/api/v1/dashboard/trends", { signal }),
+          api.get<SmartBasketResponse>("/api/v1/dashboard/smart-basket", { signal }),
         ]);
         if (signal?.aborted) return;
-        setSpending(spendRes.data);
-        setStores(storesRes.data);
-        setTrends(trendsRes.data);
+        if (spendRes.status === "fulfilled") setSpending(spendRes.value.data);
+        if (storesRes.status === "fulfilled") setStores(storesRes.value.data);
+        if (trendsRes.status === "fulfilled") setTrends(trendsRes.value.data);
+        if (basketRes.status === "fulfilled") setSmartBasket(basketRes.value.data);
       } catch {
         if (signal?.aborted) return;
       } finally {
@@ -224,6 +251,91 @@ export function DashboardPage() {
         <div className="mx-5 rounded-2xl bg-gradient-to-l from-green-500 to-green-600 p-5 text-white">
           <p className="text-sm opacity-80">סה״כ הוצאות</p>
           <p className="mt-1 text-3xl font-bold">{formatCurrency(spending.total_spending)}</p>
+        </div>
+      )}
+
+      {/* Smart basket comparison */}
+      {smartBasket && smartBasket.comparisons.length > 0 && (
+        <div className="mx-5 mt-4 space-y-4">
+          {/* Cheapest store recommendation card */}
+          <div className="rounded-2xl bg-gradient-to-l from-emerald-500 to-emerald-600 p-5 text-white">
+            <p className="text-sm opacity-80">הסופר הזול לרשימה שלך</p>
+            <p className="mt-1 text-2xl font-bold">{smartBasket.cheapest_store}</p>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-xl font-semibold">
+                {formatCurrency(smartBasket.cheapest_total)}
+              </span>
+              {smartBasket.savings > 0 && (
+                <span className="rounded-full bg-white/20 px-3 py-0.5 text-sm font-medium">
+                  חיסכון {formatCurrency(smartBasket.savings)}
+                </span>
+              )}
+            </div>
+            {smartBasket.coverage_text && (
+              <p className="mt-2 text-xs opacity-70">{smartBasket.coverage_text}</p>
+            )}
+          </div>
+
+          {/* Per-store price comparison */}
+          <div className="rounded-2xl bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-lg font-semibold">עלות הרשימה לפי חנות</h2>
+            <div className="space-y-3">
+              {smartBasket.comparisons.map((store) => {
+                const isCheapest = store.store_name === smartBasket.cheapest_store;
+                const maxTotal = smartBasket.comparisons[smartBasket.comparisons.length - 1]?.total || 1;
+                const pct = Math.round((store.total / maxTotal) * 100);
+                return (
+                  <div key={store.store_name}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className={`font-medium ${isCheapest ? "text-green-700" : "text-gray-800"}`}>
+                        {isCheapest && <span className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500" />}
+                        {store.store_name}
+                      </span>
+                      <span className="text-gray-500">
+                        {formatCurrency(store.total)} · {store.matched_count} מוצרים
+                      </span>
+                    </div>
+                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className={`h-full rounded-full transition-all ${isCheapest ? "bg-green-500" : "bg-gray-300"}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Per-category store recommendations */}
+          {smartBasket.category_recommendations.length > 0 && (
+            <div className="rounded-2xl bg-white p-4 shadow-sm">
+              <h2 className="mb-3 text-lg font-semibold">החנות הזולה לפי קטגוריה</h2>
+              <div className="space-y-2">
+                {smartBasket.category_recommendations.map((rec) => (
+                  <div
+                    key={rec.category_name}
+                    className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-800">
+                        {rec.category_name}
+                      </span>
+                      <span className="text-xs text-gray-400">→</span>
+                      <span className="text-sm font-medium text-green-700">
+                        {rec.cheapest_store}
+                      </span>
+                    </div>
+                    {rec.savings > 0 && (
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                        חיסכון {formatCurrency(rec.savings)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
