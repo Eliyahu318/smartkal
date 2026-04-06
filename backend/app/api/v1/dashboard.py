@@ -107,9 +107,12 @@ async def get_spending_by_category(
     # Sum purchase totals grouped by category name.
     # Purchase → Product → Category gives us the category name.
     # Purchases without a matched product are grouped under "אחר".
+    # NOTE: reuse the same expression object so SQLAlchemy generates
+    # matching parameter bindings for GROUP BY (PostgreSQL requirement).
+    cat_name_expr = func.coalesce(Category.name, "אחר")
     stmt = (
         select(
-            func.coalesce(Category.name, "אחר").label("cat_name"),
+            cat_name_expr.label("cat_name"),
             func.coalesce(func.sum(Purchase.total_price), Decimal(0)).label("cat_total"),
         )
         .select_from(Purchase)
@@ -121,7 +124,7 @@ async def get_spending_by_category(
             Receipt.receipt_date >= start_date,
             Receipt.receipt_date <= end_date,
         )
-        .group_by(func.coalesce(Category.name, "אחר"))
+        .group_by(cat_name_expr)
         .order_by(func.sum(Purchase.total_price).desc())
     )
 
@@ -165,14 +168,15 @@ async def get_spending_by_store(
     db: AsyncSession = Depends(get_db),
 ) -> StoresResponse:
     """Spending breakdown by store chain."""
+    store_expr = func.coalesce(Receipt.store_name, "לא ידוע")
     stmt = (
         select(
-            func.coalesce(Receipt.store_name, "לא ידוע").label("store"),
+            store_expr.label("store"),
             func.coalesce(func.sum(Receipt.total_amount), Decimal(0)).label("store_total"),
             func.count(Receipt.id).label("receipt_count"),
         )
         .where(Receipt.user_id == current_user.id)
-        .group_by(func.coalesce(Receipt.store_name, "לא ידוע"))
+        .group_by(store_expr)
         .order_by(func.sum(Receipt.total_amount).desc())
     )
 
@@ -213,20 +217,21 @@ async def get_spending_trends(
 ) -> TrendsResponse:
     """Monthly spending trend over the last 12 months."""
     today = date.today()
-    twelve_months_ago = date(today.year - 1, today.month, 1) if today.month <= 12 else date(today.year, 1, 1)
+    twelve_months_ago = date(today.year - 1, today.month, 1)
 
     # Extract year-month from receipt_date for grouping
+    month_expr = func.to_char(Receipt.receipt_date, "YYYY-MM")
     stmt = (
         select(
-            func.to_char(Receipt.receipt_date, "YYYY-MM").label("month"),
+            month_expr.label("month"),
             func.coalesce(func.sum(Receipt.total_amount), Decimal(0)).label("month_total"),
         )
         .where(
             Receipt.user_id == current_user.id,
             Receipt.receipt_date >= twelve_months_ago,
         )
-        .group_by(func.to_char(Receipt.receipt_date, "YYYY-MM"))
-        .order_by(func.to_char(Receipt.receipt_date, "YYYY-MM"))
+        .group_by(month_expr)
+        .order_by(month_expr)
     )
 
     result = await db.execute(stmt)
