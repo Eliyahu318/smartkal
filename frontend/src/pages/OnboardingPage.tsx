@@ -104,7 +104,7 @@ function StepLogin() {
         size: "large",
         text: "signin_with",
         shape: "pill",
-        width: 300,
+        width: 320,
         locale: "he",
       });
     };
@@ -123,7 +123,10 @@ function StepLogin() {
   }, [handleCredentialResponse]);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center px-6">
+    <div className="flex h-full flex-col items-center px-6 pt-safe">
+      {/* Top spacer — pushes content down from status bar */}
+      <div className="flex-[2]" />
+
       {/* Logo & branding */}
       <div className="mb-8 flex flex-col items-center gap-4">
         <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-green-500 shadow-lg">
@@ -136,8 +139,8 @@ function StepLogin() {
       </div>
 
       {/* Google Sign-In + Guest */}
-      <div className="flex w-full max-w-sm flex-col items-center gap-4">
-        <div ref={buttonRef} />
+      <div className="flex w-full max-w-xs flex-col items-center gap-4">
+        <div ref={buttonRef} className="flex w-full justify-center" />
 
         {!GOOGLE_CLIENT_ID && (
           <p className="text-sm text-red-500">
@@ -174,8 +177,9 @@ function StepLogin() {
         </button>
       </div>
 
-      {/* Footer */}
-      <p className="mt-auto pb-8 text-center text-xs text-gray-400">
+      {/* Bottom spacer + footer */}
+      <div className="flex-[3]" />
+      <p className="pb-6 pb-safe text-center text-xs text-gray-400">
         בהתחברות אתה מסכים לתנאי השימוש ומדיניות הפרטיות
       </p>
     </div>
