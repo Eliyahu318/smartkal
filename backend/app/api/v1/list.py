@@ -251,14 +251,18 @@ async def get_list(
     """Return all list items grouped by category (active and completed)."""
     # Fetch all items for the user
     items_result = await db.execute(
-        select(ListItem)
-        .where(ListItem.user_id == current_user.id)
-        .order_by(ListItem.display_order, ListItem.created_at)
+        select(ListItem).where(ListItem.user_id == current_user.id)
     )
     items = list(items_result.scalars().all())
 
     # Lazy: backfill canonical_key for items that pre-date the dedup feature.
     await _lazy_backfill_canonical_keys(db, items)
+
+    # Sort items alphabetically (Hebrew א-ב). Hebrew letters U+05D0..U+05EA are
+    # already in alphabetical order by Unicode codepoint, so a plain Python sort
+    # gives the right result without depending on Postgres collation. casefold()
+    # makes the order case-insensitive for items with mixed Latin characters.
+    items.sort(key=lambda i: i.name.casefold())
 
     # Fetch all categories for the user
     cats_result = await db.execute(

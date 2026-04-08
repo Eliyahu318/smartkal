@@ -222,6 +222,45 @@ class TestGetList:
         assert data["groups"][0]["category"] is None
         assert data["groups"][0]["items"][0]["name"] == "משהו"
 
+    @pytest.mark.anyio
+    async def test_get_list_sorts_items_alphabetically(self) -> None:
+        """Items within each category are returned sorted by name (Hebrew א-ב)."""
+        cat = _mock_category()
+        # Mock returns items in non-alphabetical order; the endpoint must sort them.
+        items = [
+            _mock_list_item(item_id=uuid.uuid4(), name="תפוז", category_id=cat.id),
+            _mock_list_item(item_id=uuid.uuid4(), name="אבטיח", category_id=cat.id),
+            _mock_list_item(item_id=uuid.uuid4(), name="מלפפון", category_id=cat.id),
+            _mock_list_item(item_id=uuid.uuid4(), name="בננה", category_id=cat.id),
+        ]
+        # Pre-set canonical_key on every item so the lazy backfill is a no-op
+        # and doesn't try to flush against the mock.
+        for item in items:
+            item.canonical_key = item.name
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        items_result = MagicMock()
+        items_result.scalars.return_value.all.return_value = items
+        cats_result = MagicMock()
+        cats_result.scalars.return_value.all.return_value = [cat]
+        mock_session.execute.side_effect = [items_result, cats_result]
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/list",
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        names = [i["name"] for i in data["groups"][0]["items"]]
+        # Hebrew alphabetical order: אבטיח, בננה, מלפפון, תפוז
+        assert names == ["אבטיח", "בננה", "מלפפון", "תפוז"]
+
 
 # ---------------------------------------------------------------------------
 # POST /api/v1/list/items — add item
