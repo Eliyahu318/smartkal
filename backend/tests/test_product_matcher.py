@@ -519,7 +519,13 @@ class TestMatchReceiptPurchases:
     async def test_completes_matching_list_item(
         self, mock_refresh: AsyncMock
     ) -> None:
-        """When a matching list item exists, it's marked as completed."""
+        """When a matching list item exists, it's marked as completed.
+
+        New flow (post-dedup refactor):
+          1. barcode lookup -> product
+          2. _alias_target -> None
+          3. _direct_target (active) -> list_item
+        """
         mock_refresh.return_value = (14, 0.3, None)
 
         db = AsyncMock(spec=AsyncSession)
@@ -532,27 +538,246 @@ class TestMatchReceiptPurchases:
             status="active",
             product_id=product.id,
         )
+        list_item.canonical_key = None
 
         receipt = MagicMock()
         receipt.id = uuid.uuid4()
         purchase = _mock_purchase(raw_name="חלב תנובה 3%", barcode="7290000123456")
         receipt.purchases = [purchase]
 
-        # Barcode match
+        # 1. Barcode lookup
         barcode_result = MagicMock()
         barcode_result.scalar_one_or_none.return_value = product
 
-        # List items matching product_id — item found, so no further DB calls needed
-        items_result = MagicMock()
-        items_result.scalars.return_value.all.return_value = [list_item]
+        # 2. _alias_target — no explicit alias for this product
+        alias_result = MagicMock()
+        alias_result.scalar_one_or_none.return_value = None
 
-        db.execute.side_effect = [barcode_result, items_result]
+        # 3. _direct_target — finds the active list_item via product_id
+        direct_active_result = MagicMock()
+        direct_active_result.scalar_one_or_none.return_value = list_item
+
+        db.execute.side_effect = [
+            barcode_result,
+            alias_result,
+            direct_active_result,
+        ]
 
         counts = await match_receipt_purchases(
             db, receipt, FAKE_USER_ID, purchases=[purchase],
         )
 
         assert counts["completed_items"] == 1
+        assert counts["completed_via_alias"] == 0  # found via direct, not alias
+        assert counts["auto_merged_to_existing"] == 0
         assert list_item.status == "completed"
         assert list_item.last_completed_at is not None
         assert list_item.source == "receipt"
+
+
+# ---------------------------------------------------------------------------
+# resolve_list_item_target — the per-user dedup priority chain
+# ---------------------------------------------------------------------------
+
+
+class TestResolveListItemTarget:
+    """Verify each branch of the resolve_list_item_target priority chain.
+
+    Order: alias → direct_active → direct_any → canonical → fuzzy_unlinked → none.
+    Each branch's mock sequence is wired to return the expected target at the
+    expected step.
+    """
+
+    @pytest.mark.anyio
+    async def test_alias_path(self) -> None:
+        """When an explicit alias exists, it wins over everything else."""
+        from app.services.product_matcher import resolve_list_item_target
+
+        db = AsyncMock(spec=AsyncSession)
+        product = _mock_product()
+        target = _mock_list_item(name="עגבניות שרי")
+
+        alias_result = MagicMock()
+        alias_result.scalar_one_or_none.return_value = target
+        db.execute.return_value = alias_result
+
+        item, source = await resolve_list_item_target(
+            db, FAKE_USER_ID, product, "עגבניות שרי"
+        )
+
+        assert source == "alias"
+        assert item is target
+
+    @pytest.mark.anyio
+    async def test_direct_active_path(self) -> None:
+        """No alias → falls through to direct active product link."""
+        from app.services.product_matcher import resolve_list_item_target
+
+        db = AsyncMock(spec=AsyncSession)
+        product = _mock_product()
+        target = _mock_list_item(name="חלב 3%", product_id=product.id)
+
+        # 1. alias → None
+        alias_result = MagicMock()
+        alias_result.scalar_one_or_none.return_value = None
+        # 2. direct active → target
+        direct_active_result = MagicMock()
+        direct_active_result.scalar_one_or_none.return_value = target
+
+        db.execute.side_effect = [alias_result, direct_active_result]
+
+        item, source = await resolve_list_item_target(
+            db, FAKE_USER_ID, product, "חלב 3%"
+        )
+
+        assert source == "direct"
+        assert item is target
+
+    @pytest.mark.anyio
+    async def test_canonical_path(self) -> None:
+        """No alias, no direct → falls through to canonical_key match."""
+        from app.services.product_matcher import resolve_list_item_target
+
+        db = AsyncMock(spec=AsyncSession)
+        product = _mock_product()
+        target = _mock_list_item(name="עגבניות שרי")
+        target.canonical_key = "עגבניות שרי"
+
+        alias_result = MagicMock()
+        alias_result.scalar_one_or_none.return_value = None
+        direct_active_result = MagicMock()
+        direct_active_result.scalar_one_or_none.return_value = None
+        direct_any_result = MagicMock()
+        direct_any_result.scalar_one_or_none.return_value = None
+        canonical_result = MagicMock()
+        canonical_result.scalar_one_or_none.return_value = target
+
+        db.execute.side_effect = [
+            alias_result,
+            direct_active_result,
+            direct_any_result,
+            canonical_result,
+        ]
+
+        item, source = await resolve_list_item_target(
+            db, FAKE_USER_ID, product, "עגבניות שרי"
+        )
+
+        assert source == "canonical"
+        assert item is target
+
+    @pytest.mark.anyio
+    async def test_no_match_returns_none(self) -> None:
+        """All paths exhausted → (None, 'none')."""
+        from app.services.product_matcher import resolve_list_item_target
+
+        db = AsyncMock(spec=AsyncSession)
+        product = _mock_product()
+
+        # All four queries return None / empty
+        empty_one = MagicMock()
+        empty_one.scalar_one_or_none.return_value = None
+        empty_list = MagicMock()
+        empty_list.scalars.return_value.all.return_value = []
+
+        db.execute.side_effect = [
+            empty_one,  # alias
+            empty_one,  # direct active
+            empty_one,  # direct any
+            empty_one,  # canonical
+            empty_list,  # fuzzy_unlinked
+        ]
+
+        item, source = await resolve_list_item_target(
+            db, FAKE_USER_ID, product, "מוצר חדש"
+        )
+
+        assert source == "none"
+        assert item is None
+
+
+class TestCanonicalKeyAutoMerge:
+    """End-to-end: a new purchase that hits the canonical_key path triggers an
+    auto-merge into an existing list item, and the counter is bumped."""
+
+    @pytest.mark.anyio
+    @patch("app.services.product_matcher.calculate_refresh_for_item")
+    async def test_canonical_match_increments_auto_merged_counter(
+        self, mock_refresh: AsyncMock
+    ) -> None:
+        mock_refresh.return_value = (7, 0.4, None)
+
+        db = AsyncMock(spec=AsyncSession)
+
+        # Existing list item with canonical_key set
+        existing_item = _mock_list_item(name="עגבניות שרי", status="active")
+        existing_item.canonical_key = "עגבניות שרי"
+        existing_item.product_id = None  # Not linked to the new product yet
+
+        # The new purchase brings a different product (e.g. "עגבניות שרי פרימיום")
+        new_product = _mock_product(name="עגבניות שרי פרימיום")
+        new_product.id = uuid.uuid4()
+
+        purchase = _mock_purchase(
+            raw_name="עגבניות שרי פרימיום", barcode=None,
+        )
+
+        receipt = MagicMock()
+        receipt.id = uuid.uuid4()
+
+        # Sequence:
+        # 1. exact_name lookup -> None (purchase.barcode is None, so skip barcode)
+        # 2. fuzzy_sku scan -> empty (no products in DB yet)
+        # 3. After Product creation: alias lookup -> None
+        # 4. direct active -> None
+        # 5. direct any -> None
+        # 6. canonical_key lookup -> existing_item (THIS IS THE WIN)
+        exact_name_result = MagicMock()
+        exact_name_result.scalar_one_or_none.return_value = None
+
+        fuzzy_result = MagicMock()
+        fuzzy_result.scalars.return_value.all.return_value = []
+
+        alias_result = MagicMock()
+        alias_result.scalar_one_or_none.return_value = None
+
+        direct_active_result = MagicMock()
+        direct_active_result.scalar_one_or_none.return_value = None
+
+        direct_any_result = MagicMock()
+        direct_any_result.scalar_one_or_none.return_value = None
+
+        canonical_result = MagicMock()
+        canonical_result.scalar_one_or_none.return_value = existing_item
+
+        db.execute.side_effect = [
+            exact_name_result,
+            fuzzy_result,
+            alias_result,
+            direct_active_result,
+            direct_any_result,
+            canonical_result,
+        ]
+
+        # Track the new product creation
+        added_objects: list[Any] = []
+
+        def track_add(obj: Any) -> None:
+            obj.id = obj.id if getattr(obj, "id", None) else uuid.uuid4()
+            added_objects.append(obj)
+
+        db.add.side_effect = track_add
+
+        counts = await match_receipt_purchases(
+            db,
+            receipt,
+            FAKE_USER_ID,
+            purchases=[purchase],
+            canonicals=["עגבניות שרי"],
+        )
+
+        assert counts["new"] == 1  # New product was created
+        assert counts["completed_items"] == 1
+        assert counts["auto_merged_to_existing"] == 1  # The new counter
+        assert existing_item.status == "completed"
+        assert existing_item.last_completed_at is not None

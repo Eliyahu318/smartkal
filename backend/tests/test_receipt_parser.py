@@ -119,6 +119,39 @@ class TestValidateAndBuild:
         result = _validate_and_build(data)
         assert result.items[0].quantity == 1.0
 
+    def test_extracts_canonical_name_when_present(self) -> None:
+        """Claude returns canonical_name → ParsedItem.canonical_name populated."""
+        data: dict[str, object] = {
+            "items": [
+                {
+                    "name": "עגבניות שרי פרימיום תנובה 250 גרם",
+                    "canonical_name": "עגבניות שרי",
+                    "quantity": 1.0,
+                }
+            ],
+        }
+        result = _validate_and_build(data)
+        assert result.items[0].canonical_name == "עגבניות שרי"
+
+    def test_canonical_name_optional(self) -> None:
+        """When Claude omits canonical_name, ParsedItem.canonical_name is None."""
+        data: dict[str, object] = {
+            "items": [
+                {"name": "חלב 3%", "quantity": 1.0}  # no canonical_name
+            ],
+        }
+        result = _validate_and_build(data)
+        assert result.items[0].canonical_name is None
+
+    def test_canonical_name_empty_string_treated_as_none(self) -> None:
+        data: dict[str, object] = {
+            "items": [
+                {"name": "חלב 3%", "canonical_name": "  ", "quantity": 1.0}
+            ],
+        }
+        result = _validate_and_build(data)
+        assert result.items[0].canonical_name is None
+
     def test_null_fields_handled(self) -> None:
         data: dict[str, object] = {
             "store_name": None,

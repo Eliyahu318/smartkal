@@ -8,6 +8,7 @@ import { MorePage } from "@/pages/MorePage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { CategoryManagementPage } from "@/pages/CategoryManagementPage";
+import { DuplicatesPage } from "@/pages/DuplicatesPage";
 import { OnboardingPage } from "@/pages/OnboardingPage";
 import { useAuthStore } from "@/store/authStore";
 
@@ -22,6 +23,7 @@ function AuthenticatedRoutes() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/categories" element={<CategoryManagementPage />} />
+        <Route path="/duplicates" element={<DuplicatesPage />} />
         <Route path="*" element={<Navigate to="/list" replace />} />
       </Routes>
     </AppShell>

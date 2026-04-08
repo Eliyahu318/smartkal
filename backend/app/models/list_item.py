@@ -13,6 +13,7 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.category import Category
+    from app.models.list_item_alias import ListItemAlias
     from app.models.product import Product
     from app.models.user import User
 
@@ -33,6 +34,7 @@ class ListItem(UUIDMixin, TimestampMixin, Base):
     __table_args__ = (
         Index("ix_list_items_user_status", "user_id", "status"),
         Index("ix_list_items_refresh", "status", "next_refresh_at"),
+        Index("ix_list_items_user_canonical", "user_id", "canonical_key"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -45,6 +47,7 @@ class ListItem(UUIDMixin, TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
     )
     name: Mapped[str] = mapped_column(String(500), nullable=False)
+    canonical_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     quantity: Mapped[str | None] = mapped_column(String(50), nullable=True)
     note: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     status: Mapped[str] = mapped_column(
@@ -70,3 +73,6 @@ class ListItem(UUIDMixin, TimestampMixin, Base):
     user: Mapped[User] = relationship(back_populates="list_items")
     product: Mapped[Product | None] = relationship(back_populates="list_items")
     category: Mapped[Category | None] = relationship(back_populates="list_items")
+    aliases: Mapped[list[ListItemAlias]] = relationship(
+        back_populates="list_item", cascade="all, delete-orphan"
+    )

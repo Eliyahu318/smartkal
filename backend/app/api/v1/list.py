@@ -21,7 +21,13 @@ from app.models.category import Category
 from app.models.list_item import ListItem, ListItemSource, ListItemStatus
 from app.models.product import Product
 from app.models.user import User
+from app.services.canonicalizer import canonical_key
 from app.services.categorizer import auto_categorize
+from app.services.item_merger import (
+    auto_merge_safe_groups,
+    find_duplicate_groups,
+    merge_list_items,
+)
 from app.services.refresh_engine import activate_overdue_items, calculate_refresh_for_item
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()
@@ -134,6 +140,28 @@ class BulkActionResponse(BaseModel):
     affected_count: int
 
 
+class DuplicateGroupResponse(BaseModel):
+    canonical: str
+    items: list["ListItemResponse"]
+
+
+class DuplicatesResponse(BaseModel):
+    groups: list[DuplicateGroupResponse]
+
+
+class MergeRequest(BaseModel):
+    target_id: uuid.UUID = Field(..., description="Item that absorbs the others")
+    source_ids: list[uuid.UUID] = Field(
+        ..., min_length=1, max_length=50,
+        description="Items to merge into the target",
+    )
+
+
+class AutoMergeResponse(BaseModel):
+    merged_count: int = Field(..., description="Number of source items absorbed")
+    group_count: int = Field(..., description="Number of groups that were merged")
+
+
 # --- Helpers ---
 
 
@@ -182,6 +210,39 @@ async def _get_user_item(
 # --- Endpoints ---
 
 
+_LAZY_BACKFILL_LIMIT = 50
+
+
+async def _lazy_backfill_canonical_keys(
+    db: AsyncSession,
+    items: list[ListItem],
+) -> None:
+    """Populate canonical_key on up to _LAZY_BACKFILL_LIMIT items missing it.
+
+    Pure deterministic — no Claude calls, no extra DB roundtrips. Spreads the
+    backfill cost over normal list views so existing users get the dedup
+    feature on their next visit without a one-shot migration.
+    """
+    backfilled: list[ListItem] = []
+    for item in items:
+        if len(backfilled) >= _LAZY_BACKFILL_LIMIT:
+            break
+        if item.canonical_key:
+            continue
+        key = canonical_key(item.name)
+        if key:
+            item.canonical_key = key
+            backfilled.append(item)
+    if not backfilled:
+        return
+    await db.flush()
+    # Refresh each modified item so subsequent attribute access
+    # (e.g. ListItemResponse.model_validate) doesn't trigger MissingGreenlet
+    # on the lazy-loaded `updated_at`. Matches the convention in CLAUDE.md.
+    for item in backfilled:
+        await db.refresh(item)
+
+
 @router.get("", response_model=ListResponse)
 async def get_list(
     current_user: User = Depends(get_current_user),
@@ -195,6 +256,9 @@ async def get_list(
         .order_by(ListItem.display_order, ListItem.created_at)
     )
     items = list(items_result.scalars().all())
+
+    # Lazy: backfill canonical_key for items that pre-date the dedup feature.
+    await _lazy_backfill_canonical_keys(db, items)
 
     # Fetch all categories for the user
     cats_result = await db.execute(
@@ -694,3 +758,66 @@ async def upgrade_item_name(
     )
 
     return ListItemResponse.model_validate(item)
+
+
+# --- Duplicate detection / merge endpoints ---
+
+
+@router.get("/duplicates", response_model=DuplicatesResponse)
+async def get_duplicates(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Return groups of list items that share the same canonical key.
+
+    Items missing a canonical_key are excluded — they will be backfilled
+    lazily on the next GET /list call. Groups with only one item are not
+    returned.
+    """
+    groups = await find_duplicate_groups(db, current_user.id)
+
+    return DuplicatesResponse(
+        groups=[
+            DuplicateGroupResponse(
+                canonical=g.canonical,
+                items=[ListItemResponse.model_validate(i) for i in g.items],
+            )
+            for g in groups
+        ],
+    )
+
+
+@router.post("/merge", response_model=ListItemResponse)
+async def merge_items_endpoint(
+    body: MergeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Merge multiple list items into a target.
+
+    Validates ownership of all referenced items via item_merger.merge_list_items.
+    Returns the updated target item.
+    """
+    target = await merge_list_items(
+        db, current_user.id, body.target_id, body.source_ids
+    )
+    await db.commit()
+    await db.refresh(target)
+    return ListItemResponse.model_validate(target)
+
+
+@router.post("/duplicates/auto-merge", response_model=AutoMergeResponse)
+async def auto_merge_duplicates(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Auto-merge duplicate groups that pass the safety check.
+
+    Only merges groups where every pair of items has token_set_ratio above
+    SECONDARY_SIMILARITY_THRESHOLD AND share the same canonical_key. Ambiguous
+    groups are left untouched and will appear in GET /duplicates for the user
+    to merge manually.
+    """
+    merged_count, group_count = await auto_merge_safe_groups(db, current_user.id)
+    await db.commit()
+    return AutoMergeResponse(merged_count=merged_count, group_count=group_count)

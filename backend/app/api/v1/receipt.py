@@ -82,6 +82,8 @@ class MatchCountsResponse(BaseModel):
     fuzzy: int = 0
     new: int = 0
     completed_items: int = 0
+    auto_merged_to_existing: int = 0
+    completed_via_alias: int = 0
 
 
 class UploadReceiptResponse(BaseModel):
@@ -183,8 +185,15 @@ async def upload_receipt(
         db.add(purchase)
     await db.flush()
 
+    # Parallel list of canonical_name hints from the parser, in the same order
+    # as `purchases`. Used by the matcher to populate canonical_key for the
+    # per-user dedup layer without needing a new column on Purchase.
+    canonicals = [item.canonical_name for item in parsed.items]
+
     # Match purchases to products, complete matching list items
-    match_counts = await match_receipt_purchases(db, receipt, current_user.id, purchases)
+    match_counts = await match_receipt_purchases(
+        db, receipt, current_user.id, purchases, canonicals=canonicals
+    )
 
     # Save receipt prices to PriceHistory for comparison
     await save_receipt_prices_to_history(
@@ -299,7 +308,28 @@ async def reprocess_receipt(
         )
 
     purchases = list(receipt.purchases)
-    match_counts = await match_receipt_purchases(db, receipt, current_user.id, purchases)
+
+    # Try to recover canonical_name hints from the stored parser JSON. If the
+    # receipt was uploaded before the parser started emitting canonical_name,
+    # this list will contain Nones — the matcher will fall back to the
+    # deterministic canonicalizer.
+    canonicals: list[str | None] | None = None
+    parsed_json = receipt.parsed_json
+    if isinstance(parsed_json, dict):
+        items_payload = parsed_json.get("items")
+        if isinstance(items_payload, list) and len(items_payload) == len(purchases):
+            recovered: list[str | None] = []
+            for item in items_payload:
+                if isinstance(item, dict):
+                    cn = item.get("canonical_name")
+                    recovered.append(cn.strip() if isinstance(cn, str) and cn.strip() else None)
+                else:
+                    recovered.append(None)
+            canonicals = recovered
+
+    match_counts = await match_receipt_purchases(
+        db, receipt, current_user.id, purchases, canonicals=canonicals
+    )
 
     # Save receipt prices to PriceHistory for comparison
     await save_receipt_prices_to_history(

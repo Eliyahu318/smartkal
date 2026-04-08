@@ -867,3 +867,155 @@ class TestSuggestions:
         assert len(data["suggestions"]) == 2
         names = [s["name"] for s in data["suggestions"]]
         assert names == ["חלב", "חלב שוקו"]
+
+
+# ---------------------------------------------------------------------------
+# Duplicate detection / merge endpoints
+# ---------------------------------------------------------------------------
+
+
+def _mock_dup_item(
+    name: str, canonical_key: str, item_id: uuid.UUID | None = None
+) -> MagicMock:
+    item = _mock_list_item(item_id=item_id, name=name)
+    item.canonical_key = canonical_key
+    return item
+
+
+class TestGetDuplicates:
+    @pytest.mark.anyio
+    async def test_returns_groups(self) -> None:
+        """GET /list/duplicates returns canonical-key groups with > 1 item."""
+        a1 = _mock_dup_item("עגבניות שרי", "עגבניות שרי", item_id=uuid.uuid4())
+        a2 = _mock_dup_item(
+            "עגבניות שרי פרימיום", "עגבניות שרי", item_id=uuid.uuid4()
+        )
+        b = _mock_dup_item("חלב 3%", "חלב 3%", item_id=uuid.uuid4())  # singleton
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        items_result = MagicMock()
+        items_result.scalars.return_value.all.return_value = [a1, a2, b]
+        mock_session.execute.return_value = items_result
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/list/duplicates",
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["groups"]) == 1
+        assert data["groups"][0]["canonical"] == "עגבניות שרי"
+        assert len(data["groups"][0]["items"]) == 2
+
+    @pytest.mark.anyio
+    async def test_empty_when_no_duplicates(self) -> None:
+        a = _mock_dup_item("חלב 3%", "חלב 3%")
+        mock_session = AsyncMock(spec=AsyncSession)
+        items_result = MagicMock()
+        items_result.scalars.return_value.all.return_value = [a]
+        mock_session.execute.return_value = items_result
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/list/duplicates",
+                headers={"Authorization": "Bearer fake"},
+            )
+        assert response.status_code == 200
+        assert response.json() == {"groups": []}
+
+
+class TestMergeEndpoint:
+    @pytest.mark.anyio
+    async def test_validates_target_in_sources(self) -> None:
+        target_id = uuid.uuid4()
+
+        mock_session = AsyncMock(spec=AsyncSession)
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/list/merge",
+                headers={"Authorization": "Bearer fake"},
+                json={
+                    "target_id": str(target_id),
+                    "source_ids": [str(target_id), str(uuid.uuid4())],
+                },
+            )
+        # ValidationError → 400 / 422 (depending on handler)
+        assert response.status_code in (400, 422)
+
+    @pytest.mark.anyio
+    async def test_validates_empty_sources(self) -> None:
+        mock_session = AsyncMock(spec=AsyncSession)
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/list/merge",
+                headers={"Authorization": "Bearer fake"},
+                json={
+                    "target_id": str(uuid.uuid4()),
+                    "source_ids": [],
+                },
+            )
+        # Pydantic min_length=1 → 422
+        assert response.status_code in (400, 422)
+
+    @pytest.mark.anyio
+    async def test_target_not_owned_returns_404(self) -> None:
+        """Trying to merge into an item you don't own returns 404."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        # _load_owned_items returns empty -> NotFoundError
+        target_result = MagicMock()
+        target_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = target_result
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/list/merge",
+                headers={"Authorization": "Bearer fake"},
+                json={
+                    "target_id": str(uuid.uuid4()),
+                    "source_ids": [str(uuid.uuid4())],
+                },
+            )
+        assert response.status_code == 404
+
+
+class TestAutoMerge:
+    @pytest.mark.anyio
+    async def test_auto_merge_no_groups(self) -> None:
+        """Auto-merge with no duplicates returns zero counts."""
+        mock_session = AsyncMock(spec=AsyncSession)
+        items_result = MagicMock()
+        items_result.scalars.return_value.all.return_value = []
+        mock_session.execute.return_value = items_result
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/list/duplicates/auto-merge",
+                headers={"Authorization": "Bearer fake"},
+            )
+        assert response.status_code == 200
+        assert response.json() == {"merged_count": 0, "group_count": 0}

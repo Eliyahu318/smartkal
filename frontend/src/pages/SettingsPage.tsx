@@ -1,10 +1,35 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, GitMerge, Sparkles } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
+import api, { getErrorMessageHe } from "@/api/client";
+import { showToast } from "@/components/Toast";
+import type { AutoMergeResponse } from "@/types/duplicates";
 
 export function SettingsPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const [autoMerging, setAutoMerging] = useState(false);
+
+  const handleAutoMerge = async () => {
+    if (autoMerging) return;
+    setAutoMerging(true);
+    try {
+      const res = await api.post<AutoMergeResponse>(
+        "/api/v1/list/duplicates/auto-merge",
+      );
+      const { merged_count, group_count } = res.data;
+      if (merged_count > 0) {
+        showToast(`${merged_count} פריטים אוחדו ב-${group_count} קבוצות`, "success");
+      } else {
+        showToast("לא נמצאו קבוצות בטוחות לאיחוד אוטומטי", "info");
+      }
+    } catch (err) {
+      showToast(getErrorMessageHe(err));
+    } finally {
+      setAutoMerging(false);
+    }
+  };
 
   return (
     <div className="px-5 pt-14 pb-8">
@@ -34,6 +59,50 @@ export function SettingsPage() {
               {user?.email ?? ""}
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Duplicate management section */}
+      <div className="mb-6">
+        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          ניהול כפילויות
+        </h2>
+        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+          <button
+            type="button"
+            onClick={() => navigate("/duplicates")}
+            className="flex w-full items-center justify-between px-4 py-3.5 text-right hover:bg-gray-50"
+          >
+            <div className="flex items-center gap-3">
+              <GitMerge className="h-5 w-5 text-gray-500" />
+              <div>
+                <p className="text-[15px] font-medium text-gray-800">בדוק כפילויות</p>
+                <p className="text-xs text-gray-500">
+                  הצג קבוצות של פריטים דומים ואחד אותם ידנית
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 -rotate-180 text-gray-400" />
+          </button>
+          <div className="border-t border-gray-100" />
+          <button
+            type="button"
+            onClick={handleAutoMerge}
+            disabled={autoMerging}
+            className="flex w-full items-center justify-between px-4 py-3.5 text-right hover:bg-gray-50 disabled:opacity-50"
+          >
+            <div className="flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              <div>
+                <p className="text-[15px] font-medium text-gray-800">
+                  {autoMerging ? "מאחד..." : "איחוד אוטומטי של כפילויות בטוחות"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  מאחד רק קבוצות עם דמיון גבוה — בלי לערב פריטים שונים
+                </p>
+              </div>
+            </div>
+          </button>
         </div>
       </div>
 

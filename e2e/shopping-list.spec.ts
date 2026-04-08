@@ -134,4 +134,69 @@ test.describe("Shopping List", () => {
       page.getByRole("heading", { name: "קבלות", exact: true })
     ).toBeVisible();
   });
+
+  test("duplicates page shows empty state when there are no duplicates", async ({
+    authenticatedPage: page,
+  }) => {
+    // Navigate directly to /duplicates — should show empty state for a fresh user
+    await page.goto("/duplicates");
+    await expect(
+      page.getByRole("heading", { name: "איחוד פריטים כפולים" })
+    ).toBeVisible();
+    await expect(page.getByText("אין כפילויות ברשימה שלך")).toBeVisible({
+      timeout: 10_000,
+    });
+  });
+
+  test("manually-added near-duplicate items can be merged via /duplicates page", async ({
+    authenticatedPage: page,
+  }) => {
+    // Add three near-duplicate items
+    await page.getByRole("button", { name: "הוסף מוצר" }).click();
+    await page.getByTestId("add-item-input").fill("עגבניות שרי");
+    await page.getByTestId("add-item-input").press("Enter");
+    await expect(page.getByTestId("add-item-input")).toHaveValue("", {
+      timeout: 10_000,
+    });
+
+    await page.getByTestId("add-item-input").fill("עגבניות שרי פרימיום");
+    await page.getByTestId("add-item-input").press("Enter");
+    await expect(page.getByTestId("add-item-input")).toHaveValue("", {
+      timeout: 10_000,
+    });
+
+    await page.getByTestId("add-item-input").fill("עגבניות שרי עגול");
+    await page.getByTestId("add-item-input").press("Enter");
+    await expect(page.getByTestId("add-item-input")).toHaveValue("", {
+      timeout: 10_000,
+    });
+
+    // Reload the list once so the lazy backfill runs and writes canonical_key
+    await page.reload();
+    await page.waitForURL("**/list");
+
+    // Wait for the duplicates badge to appear in the header
+    await expect(
+      page.getByText(/נמצאו .* קבוצות כפילויות/)
+    ).toBeVisible({ timeout: 10_000 });
+
+    // Click the badge → navigates to /duplicates
+    await page.getByText(/נמצאו .* קבוצות כפילויות/).click();
+    await page.waitForURL("**/duplicates");
+
+    // Confirm merge by clicking the primary CTA in the first group card
+    await page.getByRole("button", { name: "אחד פריטים אלה" }).first().click();
+
+    // Wait for the empty state to appear after the merge succeeds
+    await expect(page.getByText("אין כפילויות ברשימה שלך")).toBeVisible({
+      timeout: 10_000,
+    });
+
+    // Navigate back to /list and verify only one of the three items remains
+    await page.goto("/list");
+    const cherryTomatoItems = page.locator('[class*="leading-tight"]', {
+      hasText: "עגבניות שרי",
+    });
+    await expect(cherryTomatoItems).toHaveCount(1, { timeout: 10_000 });
+  });
 });

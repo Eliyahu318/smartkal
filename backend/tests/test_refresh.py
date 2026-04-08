@@ -785,3 +785,106 @@ class TestFrequencyCalculationKnownDates:
 
         # User override is handled in the endpoint, but confidence should be 0.95
         assert 0.95 == 0.95  # Verified in test_user_override_on_completed_item_recalculates
+
+
+# ---------------------------------------------------------------------------
+# gather_purchase_timestamps with alias support
+# ---------------------------------------------------------------------------
+
+
+class TestGatherPurchaseTimestampsAliasAware:
+    """The dedup feature requires that gather_purchase_timestamps include
+    purchases of products that are aliased to the same list item, so that
+    cadence calculations after merging see the combined history."""
+
+    @pytest.mark.anyio
+    async def test_returns_empty_when_both_none(self) -> None:
+        """No product_id and no list_item_id → empty list."""
+        from app.services.refresh_engine import gather_purchase_timestamps
+
+        db = AsyncMock(spec=AsyncSession)
+        result = await gather_purchase_timestamps(
+            db, FAKE_USER_ID, product_id=None, list_item_id=None
+        )
+        assert result == []
+        # No DB call needed
+        db.execute.assert_not_called()
+
+    @pytest.mark.anyio
+    async def test_includes_purchase_dates_for_product(self) -> None:
+        """Standard product_id-only path returns purchase dates as datetimes."""
+        from datetime import date
+
+        from app.services.refresh_engine import gather_purchase_timestamps
+
+        db = AsyncMock(spec=AsyncSession)
+
+        # Three purchases on different dates
+        dates_result = MagicMock()
+        dates_result.scalars.return_value.all.return_value = [
+            date(2026, 1, 5),
+            date(2026, 1, 12),
+            date(2026, 1, 19),
+        ]
+        db.execute.return_value = dates_result
+
+        result = await gather_purchase_timestamps(
+            db, FAKE_USER_ID, product_id=FAKE_PRODUCT_ID
+        )
+
+        assert len(result) == 3
+        assert all(isinstance(d, datetime) for d in result)
+        assert result[0].year == 2026 and result[0].month == 1 and result[0].day == 5
+
+    @pytest.mark.anyio
+    async def test_alias_aware_query_includes_list_item_id(self) -> None:
+        """When list_item_id is passed, the query is built with the alias subquery.
+
+        We verify by checking that exactly one execute call was made and the
+        result is consumed correctly. The actual SQL shape is exercised by E2E
+        and the integration tests in test_product_matcher.
+        """
+        from datetime import date
+
+        from app.services.refresh_engine import gather_purchase_timestamps
+
+        db = AsyncMock(spec=AsyncSession)
+        dates_result = MagicMock()
+        dates_result.scalars.return_value.all.return_value = [
+            date(2026, 2, 1),
+            date(2026, 2, 8),
+        ]
+        db.execute.return_value = dates_result
+
+        result = await gather_purchase_timestamps(
+            db,
+            FAKE_USER_ID,
+            product_id=FAKE_PRODUCT_ID,
+            list_item_id=FAKE_ITEM_ID,
+        )
+
+        assert len(result) == 2
+        # Exactly one query is fired (the alias subquery is inline, not a separate call)
+        assert db.execute.call_count == 1
+
+    @pytest.mark.anyio
+    async def test_skips_none_dates(self) -> None:
+        """Receipts without a date are skipped silently."""
+        from datetime import date
+
+        from app.services.refresh_engine import gather_purchase_timestamps
+
+        db = AsyncMock(spec=AsyncSession)
+        dates_result = MagicMock()
+        dates_result.scalars.return_value.all.return_value = [
+            date(2026, 1, 5),
+            None,  # Missing receipt_date
+            date(2026, 1, 19),
+        ]
+        db.execute.return_value = dates_result
+
+        result = await gather_purchase_timestamps(
+            db, FAKE_USER_ID, product_id=FAKE_PRODUCT_ID
+        )
+
+        assert len(result) == 2  # None was skipped

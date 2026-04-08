@@ -11,10 +11,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.list_item import ListItem, ListItemSource, ListItemStatus
+from app.models.list_item_alias import ListItemAlias
 from app.models.receipt import Purchase, Receipt
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()
@@ -99,17 +100,50 @@ async def gather_purchase_timestamps(
     db: AsyncSession,
     user_id: uuid.UUID,
     product_id: uuid.UUID | None,
+    list_item_id: uuid.UUID | None = None,
 ) -> list[datetime]:
-    """Gather purchase timestamps from receipt data for a product."""
-    if product_id is None:
+    """Gather purchase timestamps from receipt data for a product.
+
+    If `list_item_id` is provided, ALSO includes purchases of any other products
+    that are aliased to the same list item via list_item_aliases. This is the
+    refresh side of per-user dedup: after merging "עגבניות שרי עגול" into
+    "עגבניות שרי", the merged item's refresh cadence sees the combined purchase
+    history of both SKUs.
+
+    Uses DISTINCT on receipt_date so two aliased products bought on the same
+    receipt don't double-count.
+    """
+    if product_id is None and list_item_id is None:
         return []
+
+    conditions = []
+    if product_id is not None:
+        conditions.append(Purchase.product_id == product_id)
+
+    if list_item_id is not None:
+        # Subquery: all product_ids aliased to this list item for this user.
+        alias_subq = (
+            select(ListItemAlias.product_id)
+            .where(
+                ListItemAlias.user_id == user_id,
+                ListItemAlias.list_item_id == list_item_id,
+            )
+            .scalar_subquery()
+        )
+        conditions.append(Purchase.product_id.in_(alias_subq))
+
+    if not conditions:
+        return []
+
+    where_clause = conditions[0] if len(conditions) == 1 else or_(*conditions)
 
     result = await db.execute(
         select(Receipt.receipt_date)
+        .distinct()
         .join(Purchase, Purchase.receipt_id == Receipt.id)
         .where(
             Receipt.user_id == user_id,
-            Purchase.product_id == product_id,
+            where_clause,
         )
         .order_by(Receipt.receipt_date)
     )
@@ -147,9 +181,12 @@ async def calculate_refresh_for_item(
     Returns (system_refresh_days, confidence, next_refresh_at).
     If user has set auto_refresh_days, that takes priority.
     """
-    # Gather all timestamps
+    # Gather all timestamps. Pass list_item_id so aliased products contribute
+    # their purchase history to the cadence calculation.
     completion_ts = await gather_completion_timestamps(db, item)
-    purchase_ts = await gather_purchase_timestamps(db, item.user_id, item.product_id)
+    purchase_ts = await gather_purchase_timestamps(
+        db, item.user_id, item.product_id, list_item_id=item.id
+    )
 
     # Merge and deduplicate (within same day)
     all_timestamps = completion_ts + purchase_ts

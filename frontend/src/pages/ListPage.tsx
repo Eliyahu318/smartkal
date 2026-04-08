@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ListChecks, X, CheckSquare } from "lucide-react";
+import { CheckSquare, GitMerge, ListChecks, X } from "lucide-react";
+import { Link } from "react-router-dom";
 import api, { getErrorMessageHe } from "../api/client";
 import { AddItemInput } from "../components/AddItemInput";
 import { BulkActionBar } from "../components/BulkActionBar";
@@ -7,6 +8,8 @@ import { ItemDetailsSheet } from "../components/ItemDetailsSheet";
 import { PriceComparisonCard } from "../components/PriceComparisonCard";
 import { ShoppingList } from "../components/ShoppingList";
 import type { ListItemData, ListResponse } from "../components/ShoppingList";
+import { showToast } from "../components/Toast";
+import type { DuplicatesResponse } from "../types/duplicates";
 
 export function ListPage() {
   const [data, setData] = useState<ListResponse | null>(null);
@@ -18,6 +21,9 @@ export function ListPage() {
   // Selection mode state
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Duplicate detection — fetched alongside the list, shown as a header badge
+  const [duplicateGroupCount, setDuplicateGroupCount] = useState<number>(0);
 
   const fetchList = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -31,6 +37,17 @@ export function ListPage() {
       if (!signal?.aborted) {
         setLoading(false);
       }
+    }
+  }, []);
+
+  const fetchDuplicates = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const res = await api.get<DuplicatesResponse>("/api/v1/list/duplicates", {
+        signal,
+      });
+      setDuplicateGroupCount(res.data.groups.length);
+    } catch {
+      // Silent — duplicate detection is best-effort and shouldn't block the list
     }
   }, []);
 
@@ -50,11 +67,14 @@ export function ListPage() {
         }
       }
       await fetchList(controller.signal);
+      // Check for duplicates after the list is loaded — must run AFTER fetchList
+      // so the lazy backfill of canonical_key has had a chance to run.
+      await fetchDuplicates(controller.signal);
     }
 
     init();
     return () => controller.abort();
-  }, [fetchList]);
+  }, [fetchList, fetchDuplicates]);
 
   const handleToggle = useCallback(async (item: ListItemData) => {
     const endpoint = item.status === "active"
@@ -207,6 +227,27 @@ export function ListPage() {
     }
   }, [allSelected, allActiveIds]);
 
+  const handleBulkMerge = useCallback(async () => {
+    if (selectedIds.size < 2) return;
+    const ids = [...selectedIds];
+    // Pick the first selected as the target — keeps it deterministic and lets the
+    // user pre-select the item they want to keep first.
+    const [targetId, ...sourceIds] = ids;
+    if (!targetId || sourceIds.length === 0) return;
+    try {
+      await api.post("/api/v1/list/merge", {
+        target_id: targetId,
+        source_ids: sourceIds,
+      });
+      showToast(`${sourceIds.length + 1} פריטים אוחדו`, "success");
+      exitSelectionMode();
+      await fetchList();
+      await fetchDuplicates();
+    } catch (err) {
+      showToast(getErrorMessageHe(err));
+    }
+  }, [selectedIds, exitSelectionMode, fetchList, fetchDuplicates]);
+
   return (
     <div className="pt-14">
       {/* Header */}
@@ -258,6 +299,19 @@ export function ListPage() {
         )}
       </div>
 
+      {/* Duplicates badge — surfaces if the dedup engine found candidate groups */}
+      {!selectionMode && duplicateGroupCount > 0 && (
+        <div className="px-5 pb-3">
+          <Link
+            to="/duplicates"
+            className="flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-800 hover:bg-purple-100"
+          >
+            <GitMerge className="h-4 w-4" />
+            <span>נמצאו {duplicateGroupCount} קבוצות כפילויות — לחץ לאיחוד</span>
+          </Link>
+        </div>
+      )}
+
       {/* Price comparison card — hidden when no price data */}
       <PriceComparisonCard />
 
@@ -300,6 +354,7 @@ export function ListPage() {
           onActivate={handleBulkActivate}
           onDelete={handleBulkDelete}
           onCancel={exitSelectionMode}
+          onMerge={handleBulkMerge}
         />
       )}
 

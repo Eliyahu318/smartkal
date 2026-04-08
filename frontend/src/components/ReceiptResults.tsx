@@ -40,6 +40,8 @@ export interface MatchCounts {
   fuzzy: number;
   new: number;
   completed_items: number;
+  auto_merged_to_existing?: number;
+  completed_via_alias?: number;
 }
 
 export interface UploadResult {
@@ -96,6 +98,7 @@ function buildCategoryBreakdown(purchases: PurchaseData[]): CategoryBreakdown[] 
 function MatchSummaryCard({ counts }: { counts: MatchCounts }) {
   const totalMatched = counts.barcode + counts.exact_name + counts.fuzzy;
   const total = totalMatched + counts.new;
+  const autoMerged = counts.auto_merged_to_existing ?? 0;
 
   return (
     <div className="mx-5 rounded-2xl bg-green-50 p-4">
@@ -110,6 +113,11 @@ function MatchSummaryCard({ counts }: { counts: MatchCounts }) {
         {counts.exact_name > 0 && <span>שם מדויק: {counts.exact_name}</span>}
         {counts.fuzzy > 0 && <span>התאמה חכמה: {counts.fuzzy}</span>}
       </div>
+      {autoMerged > 0 && (
+        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-medium text-cyan-800">
+          <span>{autoMerged} פריטים אוחדו אוטומטית עם פריטים קיימים</span>
+        </div>
+      )}
       {counts.new > 0 && (
         <p className="mt-2 text-sm text-gray-500">
           {counts.new} מוצרים חדשים נוספו מתוך {total} סה&quot;כ
