@@ -30,27 +30,54 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 _COOKIE_MAX_AGE = 30 * 24 * 3600  # 30 days
 
 
+def _build_refresh_cookie_header(
+    value: str,
+    settings: Settings,
+    *,
+    max_age: int,
+) -> str:
+    """Build a Set-Cookie header value for the refresh token.
+
+    Starlette's response.set_cookie() does not yet support the CHIPS
+    `Partitioned` attribute, so we emit the header manually. Partitioned is
+    required for Safari (16.4+) to accept SameSite=None cross-site cookies
+    on page refresh without ITP purging them.
+    """
+    samesite = (settings.cookie_samesite or "lax").lower()
+    secure = bool(settings.cookie_secure)
+    parts = [
+        f"refresh_token={value}",
+        "HttpOnly",
+        "Path=/api/v1/auth",
+        f"Max-Age={max_age}",
+        f"SameSite={samesite.capitalize()}",
+    ]
+    if secure:
+        parts.append("Secure")
+    # Partitioned is only valid (and only needed) for cross-site cookies,
+    # which require SameSite=None; Secure.
+    if samesite == "none" and secure:
+        parts.append("Partitioned")
+    return "; ".join(parts)
+
+
 def _set_refresh_cookie(response: Response, token: str, settings: Settings) -> None:
-    """Set the refresh token as an httpOnly cookie."""
-    response.set_cookie(
-        key="refresh_token",
-        value=token,
-        httponly=True,
-        secure=bool(settings.cookie_secure),
-        samesite=settings.cookie_samesite or "lax",
-        path="/api/v1/auth",
-        max_age=_COOKIE_MAX_AGE,
+    """Set the refresh token as an httpOnly (optionally Partitioned) cookie."""
+    response.headers.append(
+        "set-cookie",
+        _build_refresh_cookie_header(token, settings, max_age=_COOKIE_MAX_AGE),
     )
 
 
 def _clear_refresh_cookie(response: Response, settings: Settings) -> None:
-    """Remove the refresh token cookie."""
-    response.delete_cookie(
-        key="refresh_token",
-        path="/api/v1/auth",
-        httponly=True,
-        secure=bool(settings.cookie_secure),
-        samesite=settings.cookie_samesite or "lax",
+    """Remove the refresh token cookie.
+
+    Mirrors all attributes from _set_refresh_cookie so the browser matches the
+    existing cookie and replaces it with an expired one.
+    """
+    response.headers.append(
+        "set-cookie",
+        _build_refresh_cookie_header("", settings, max_age=0),
     )
 
 
