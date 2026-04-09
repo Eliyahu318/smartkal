@@ -781,3 +781,153 @@ class TestCanonicalKeyAutoMerge:
         assert counts["auto_merged_to_existing"] == 1  # The new counter
         assert existing_item.status == "completed"
         assert existing_item.last_completed_at is not None
+
+
+# ---------------------------------------------------------------------------
+# Per-user category resolution (no more product.category_id pollution)
+# ---------------------------------------------------------------------------
+
+
+class TestPerUserCategoryResolution:
+    """After migration 0003, category_id is resolved STRICTLY per-user — never
+    via Product.category_id. These tests pin down the new behavior."""
+
+    @pytest.mark.anyio
+    async def test_resolve_category_for_user_uses_category_hint(self) -> None:
+        """When category_hint is given, look up by name in the user's categories."""
+        from app.services.product_matcher import _resolve_category_for_user
+
+        db = AsyncMock(spec=AsyncSession)
+        expected_cat_id = uuid.uuid4()
+
+        # Single execute: SELECT Category.id WHERE user_id=? AND name=?
+        cat_result = MagicMock()
+        cat_result.scalar_one_or_none.return_value = expected_cat_id
+        db.execute.return_value = cat_result
+
+        result = await _resolve_category_for_user(
+            db, FAKE_USER_ID, category_hint="ירקות", product_name="עגבנייה"
+        )
+
+        assert result == expected_cat_id
+        # Exactly one query — no auto_categorize call when hint resolves
+        assert db.execute.call_count == 1
+
+    @pytest.mark.anyio
+    @patch("app.services.categorizer.auto_categorize", new_callable=AsyncMock)
+    async def test_resolve_category_falls_back_to_auto_categorize_when_hint_unknown(
+        self, mock_categorize: AsyncMock
+    ) -> None:
+        """If the category name doesn't exist for this user, fall back to auto_categorize."""
+        from app.services.product_matcher import _resolve_category_for_user
+
+        fallback_cat_id = uuid.uuid4()
+        mock_categorize.return_value = fallback_cat_id
+
+        db = AsyncMock(spec=AsyncSession)
+        # First execute: name lookup returns None (user doesn't have "מצרכי קסם")
+        miss_result = MagicMock()
+        miss_result.scalar_one_or_none.return_value = None
+        db.execute.return_value = miss_result
+
+        result = await _resolve_category_for_user(
+            db, FAKE_USER_ID, category_hint="מצרכי קסם", product_name="חלב"
+        )
+
+        assert result == fallback_cat_id
+        mock_categorize.assert_awaited_once_with(db, FAKE_USER_ID, "חלב")
+
+    @pytest.mark.anyio
+    @patch("app.services.product_matcher.calculate_refresh_for_item")
+    @patch("app.services.categorizer.auto_categorize", new_callable=AsyncMock)
+    async def test_complete_list_items_uses_category_hint_per_user(
+        self, mock_categorize: AsyncMock, mock_refresh: AsyncMock
+    ) -> None:
+        """When match_receipt_purchases passes a category_hint, the new list
+        item gets the user's same-named category id — NOT some other user's."""
+        mock_refresh.return_value = (None, None, None)
+        mock_categorize.return_value = None  # Should NOT be called
+
+        db = AsyncMock(spec=AsyncSession)
+
+        # The user's "ירקות" category id (per-user)
+        user_vegetables_id = uuid.uuid4()
+
+        product = _mock_product(name="עגבנייה")
+        product.id = uuid.uuid4()
+
+        purchase = _mock_purchase(raw_name="עגבנייה", barcode=None)
+
+        receipt = MagicMock()
+        receipt.id = uuid.uuid4()
+
+        # Sequence (canonical_hint="עגבנייה", category_hint="ירקות"):
+        # 1. exact_name → None
+        # 2. fuzzy_sku → empty list
+        # 3. (Product created in-memory)
+        # 4. _alias_target → None
+        # 5. _direct_target active → None
+        # 6. _direct_target any → None
+        # 7. _canonical_target → None
+        # 8. _fuzzy_unlinked_target → empty list
+        # 9. _resolve_category_for_user: Category lookup → user's "ירקות" id
+        exact_name = MagicMock()
+        exact_name.scalar_one_or_none.return_value = None
+
+        fuzzy = MagicMock()
+        fuzzy.scalars.return_value.all.return_value = []
+
+        alias = MagicMock()
+        alias.scalar_one_or_none.return_value = None
+
+        direct_active = MagicMock()
+        direct_active.scalar_one_or_none.return_value = None
+
+        direct_any = MagicMock()
+        direct_any.scalar_one_or_none.return_value = None
+
+        canonical = MagicMock()
+        canonical.scalar_one_or_none.return_value = None
+
+        fuzzy_unlinked = MagicMock()
+        fuzzy_unlinked.scalars.return_value.all.return_value = []
+
+        category_lookup = MagicMock()
+        category_lookup.scalar_one_or_none.return_value = user_vegetables_id
+
+        db.execute.side_effect = [
+            exact_name,
+            fuzzy,
+            alias,
+            direct_active,
+            direct_any,
+            canonical,
+            fuzzy_unlinked,
+            category_lookup,
+        ]
+
+        added: list[Any] = []
+
+        def track_add(obj: Any) -> None:
+            if not getattr(obj, "id", None):
+                obj.id = uuid.uuid4()
+            added.append(obj)
+
+        db.add.side_effect = track_add
+
+        await match_receipt_purchases(
+            db,
+            receipt,
+            FAKE_USER_ID,
+            purchases=[purchase],
+            canonicals=["עגבנייה"],
+            categories=["ירקות"],
+        )
+
+        # The new ListItem must have the user's category id
+        list_items_added = [o for o in added if o.__class__.__name__ == "ListItem"]
+        assert len(list_items_added) == 1
+        assert list_items_added[0].category_id == user_vegetables_id
+
+        # auto_categorize should NOT have been called (hint resolved)
+        mock_categorize.assert_not_called()

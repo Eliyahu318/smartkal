@@ -185,14 +185,20 @@ async def upload_receipt(
         db.add(purchase)
     await db.flush()
 
-    # Parallel list of canonical_name hints from the parser, in the same order
-    # as `purchases`. Used by the matcher to populate canonical_key for the
-    # per-user dedup layer without needing a new column on Purchase.
+    # Parallel hints from the parser (same order as `purchases`):
+    # - canonicals: per-user dedup layer (canonical_key on ListItem)
+    # - categories: per-user category resolution by NAME (no global cache)
     canonicals = [item.canonical_name for item in parsed.items]
+    categories_hint = [item.category_name for item in parsed.items]
 
     # Match purchases to products, complete matching list items
     match_counts = await match_receipt_purchases(
-        db, receipt, current_user.id, purchases, canonicals=canonicals
+        db,
+        receipt,
+        current_user.id,
+        purchases,
+        canonicals=canonicals,
+        categories=categories_hint,
     )
 
     # Save receipt prices to PriceHistory for comparison
@@ -309,26 +315,41 @@ async def reprocess_receipt(
 
     purchases = list(receipt.purchases)
 
-    # Try to recover canonical_name hints from the stored parser JSON. If the
-    # receipt was uploaded before the parser started emitting canonical_name,
-    # this list will contain Nones — the matcher will fall back to the
-    # deterministic canonicalizer.
+    # Try to recover canonical_name + category hints from the stored parser
+    # JSON. If the receipt was uploaded before the parser started emitting
+    # these fields, the corresponding entries will be None — the matcher will
+    # fall back to the deterministic canonicalizer / per-user auto_categorize.
     canonicals: list[str | None] | None = None
+    categories_hint: list[str | None] | None = None
     parsed_json = receipt.parsed_json
     if isinstance(parsed_json, dict):
         items_payload = parsed_json.get("items")
         if isinstance(items_payload, list) and len(items_payload) == len(purchases):
-            recovered: list[str | None] = []
+            recovered_canon: list[str | None] = []
+            recovered_cats: list[str | None] = []
             for item in items_payload:
                 if isinstance(item, dict):
                     cn = item.get("canonical_name")
-                    recovered.append(cn.strip() if isinstance(cn, str) and cn.strip() else None)
+                    recovered_canon.append(
+                        cn.strip() if isinstance(cn, str) and cn.strip() else None
+                    )
+                    cat = item.get("category")
+                    recovered_cats.append(
+                        cat.strip() if isinstance(cat, str) and cat.strip() else None
+                    )
                 else:
-                    recovered.append(None)
-            canonicals = recovered
+                    recovered_canon.append(None)
+                    recovered_cats.append(None)
+            canonicals = recovered_canon
+            categories_hint = recovered_cats
 
     match_counts = await match_receipt_purchases(
-        db, receipt, current_user.id, purchases, canonicals=canonicals
+        db,
+        receipt,
+        current_user.id,
+        purchases,
+        canonicals=canonicals,
+        categories=categories_hint,
     )
 
     # Save receipt prices to PriceHistory for comparison

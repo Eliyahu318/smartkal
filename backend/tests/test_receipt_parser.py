@@ -152,6 +152,43 @@ class TestValidateAndBuild:
         result = _validate_and_build(data)
         assert result.items[0].canonical_name is None
 
+    def test_extracts_category_name_when_present(self) -> None:
+        """Claude returns `category` per item → ParsedItem.category_name populated."""
+        data: dict[str, object] = {
+            "items": [
+                {
+                    "name": "עגבניות שרי 250 גרם",
+                    "category": "ירקות",
+                    "quantity": 1.0,
+                },
+                {
+                    "name": "חלב תנובה 3%",
+                    "category": "מוצרי חלב",
+                    "quantity": 1.0,
+                },
+            ],
+        }
+        result = _validate_and_build(data)
+        assert result.items[0].category_name == "ירקות"
+        assert result.items[1].category_name == "מוצרי חלב"
+
+    def test_category_name_optional(self) -> None:
+        """When Claude omits `category`, ParsedItem.category_name is None."""
+        data: dict[str, object] = {
+            "items": [{"name": "חלב 3%", "quantity": 1.0}],
+        }
+        result = _validate_and_build(data)
+        assert result.items[0].category_name is None
+
+    def test_category_name_empty_string_treated_as_none(self) -> None:
+        data: dict[str, object] = {
+            "items": [
+                {"name": "חלב 3%", "category": "  ", "quantity": 1.0}
+            ],
+        }
+        result = _validate_and_build(data)
+        assert result.items[0].category_name is None
+
     def test_null_fields_handled(self) -> None:
         data: dict[str, object] = {
             "store_name": None,

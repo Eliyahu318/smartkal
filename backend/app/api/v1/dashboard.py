@@ -21,7 +21,7 @@ from app.db.session import get_db
 from app.dependencies import get_current_user
 from app.models.category import Category
 from app.models.list_item import ListItem
-from app.models.product import Product
+from app.models.list_item_alias import ListItemAlias
 from app.models.receipt import Purchase, Receipt
 from app.models.user import User
 from app.services.basket_comparator import (
@@ -104,11 +104,36 @@ async def get_spending_by_category(
     """Spending breakdown by category for the given period."""
     start_date, end_date = _period_date_range(period)
 
-    # Sum purchase totals grouped by category name.
-    # Purchase → Product → Category gives us the category name.
-    # Purchases without a matched product are grouped under "אחר".
-    # NOTE: reuse the same expression object so SQLAlchemy generates
-    # matching parameter bindings for GROUP BY (PostgreSQL requirement).
+    # The category for a purchase is determined by the user's OWN list_items —
+    # not by any field on the global Product table (which has no category_id
+    # since migration 0003). Two paths can link a purchase's product_id to
+    # a list_item:
+    #   (a) direct: list_items.product_id == purchases.product_id (the
+    #       "first time the product was bought" path)
+    #   (b) via alias: list_item_aliases.product_id == purchases.product_id
+    #       (when canonical-key dedup merged this product into an existing
+    #       list item with a different product_id)
+    # We UNION both into a single (product_id → category_id) lookup.
+    direct_link = (
+        select(
+            ListItem.product_id.label("pid"),
+            ListItem.category_id.label("cid"),
+        )
+        .where(
+            ListItem.user_id == current_user.id,
+            ListItem.product_id.is_not(None),
+        )
+    )
+    alias_link = (
+        select(
+            ListItemAlias.product_id.label("pid"),
+            ListItem.category_id.label("cid"),
+        )
+        .join(ListItem, ListItem.id == ListItemAlias.list_item_id)
+        .where(ListItemAlias.user_id == current_user.id)
+    )
+    user_product_categories = direct_link.union(alias_link).subquery("upc")
+
     cat_name_expr = func.coalesce(Category.name, "אחר")
     stmt = (
         select(
@@ -117,8 +142,11 @@ async def get_spending_by_category(
         )
         .select_from(Purchase)
         .join(Receipt, Purchase.receipt_id == Receipt.id)
-        .outerjoin(Product, Purchase.product_id == Product.id)
-        .outerjoin(Category, Product.category_id == Category.id)
+        .outerjoin(
+            user_product_categories,
+            user_product_categories.c.pid == Purchase.product_id,
+        )
+        .outerjoin(Category, Category.id == user_product_categories.c.cid)
         .where(
             Receipt.user_id == current_user.id,
             Receipt.receipt_date >= start_date,

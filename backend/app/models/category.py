@@ -11,7 +11,6 @@ from app.models.base import Base, TimestampMixin, UUIDMixin
 
 if TYPE_CHECKING:
     from app.models.list_item import ListItem
-    from app.models.product import Product
     from app.models.user import User
 
 
@@ -30,5 +29,4 @@ class Category(UUIDMixin, TimestampMixin, Base):
     is_default: Mapped[bool] = mapped_column(server_default=text("false"), nullable=False)
 
     user: Mapped[User] = relationship(back_populates="categories")
-    products: Mapped[list[Product]] = relationship(back_populates="category")
     list_items: Mapped[list[ListItem]] = relationship(back_populates="category")

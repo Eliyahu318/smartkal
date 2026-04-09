@@ -414,14 +414,58 @@ async def _ensure_alias(
         )
 
 
+async def _resolve_category_for_user(
+    db: AsyncSession,
+    user_id: uuid.UUID,
+    category_hint: str | None,
+    product_name: str,
+) -> uuid.UUID | None:
+    """Resolve a category id for a new ListItem using ONLY the current user's
+    categories table — never reads or writes any global Product field.
+
+    Priority:
+      1. category_hint (string name from receipt parser) → lookup by name
+         in this user's categories
+      2. auto_categorize (Claude API) — also per-user
+      3. _get_default_category_id (the user's "אחר" category)
+    """
+    from app.models.category import Category
+    from app.services.categorizer import auto_categorize
+
+    if category_hint:
+        cat_q = await db.execute(
+            select(Category.id)
+            .where(
+                Category.user_id == user_id,
+                Category.name == category_hint,
+            )
+            .limit(1)
+        )
+        category_id = cat_q.scalar_one_or_none()
+        if category_id is not None:
+            return category_id
+
+    category_id = await auto_categorize(db, user_id, product_name)
+    if category_id is not None:
+        return category_id
+
+    return await _get_default_category_id(db, user_id)
+
+
 async def _complete_matching_list_items(
     db: AsyncSession,
     user_id: uuid.UUID,
     product: Product,
     canonical_key_value: str,
+    category_hint: str | None = None,
     purchase_quantity: float = 1.0,
 ) -> tuple[list[ListItem], str]:
     """Find or create a list item for this purchase and mark it completed.
+
+    Args:
+        category_hint: Category NAME extracted by the receipt parser. Resolved
+            per-user via Category.name lookup. Never used to populate any
+            global field on Product (categorization is strictly per-user).
 
     Returns:
         (completed_items, resolution_source) where resolution_source identifies
@@ -438,16 +482,11 @@ async def _complete_matching_list_items(
 
     if target is None:
         # No existing list item — create a new one as completed so we still
-        # learn the purchase pattern.
-        from app.services.categorizer import auto_categorize
-
-        category_id = product.category_id
-        if category_id is None:
-            category_id = await auto_categorize(db, user_id, product.name)
-            if category_id is not None:
-                product.category_id = category_id
-        if category_id is None:
-            category_id = await _get_default_category_id(db, user_id)
+        # learn the purchase pattern. Category is resolved STRICTLY per-user;
+        # we never touch product.category_id (the column is gone in 0003).
+        category_id = await _resolve_category_for_user(
+            db, user_id, category_hint, product.name
+        )
 
         target = ListItem(
             user_id=user_id,
@@ -514,6 +553,7 @@ async def match_receipt_purchases(
     user_id: uuid.UUID,
     purchases: list[Purchase] | None = None,
     canonicals: list[str | None] | None = None,
+    categories: list[str | None] | None = None,
 ) -> dict[str, int]:
     """Match all purchases in a receipt to products and complete list items.
 
@@ -522,6 +562,9 @@ async def match_receipt_purchases(
         canonicals: Parallel list of canonical_name hints from the parser. Same
             length as `purchases` if provided. If None or shorter, missing entries
             fall back to the deterministic canonicalizer.
+        categories: Parallel list of category NAME hints from the parser. Used
+            to resolve the category for newly-created list items via per-user
+            lookup. None entries fall back to auto_categorize / "אחר".
 
     Returns:
         Summary counters: {
@@ -549,6 +592,10 @@ async def match_receipt_purchases(
         canonical_hint: str | None = None
         if canonicals is not None and idx < len(canonicals):
             canonical_hint = canonicals[idx]
+
+        category_hint: str | None = None
+        if categories is not None and idx < len(categories):
+            category_hint = categories[idx]
 
         product, match_type = await match_purchase_to_product(
             db, purchase, canonical_hint=canonical_hint
@@ -578,6 +625,7 @@ async def match_receipt_purchases(
             user_id,
             product,
             canonical_key_value=canonical_key_value,
+            category_hint=category_hint,
             purchase_quantity=purchase.quantity or 1.0,
         )
         counts["completed_items"] += len(completed)

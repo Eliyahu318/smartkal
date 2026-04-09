@@ -243,6 +243,75 @@ async def _lazy_backfill_canonical_keys(
         await db.refresh(item)
 
 
+async def _lazy_repair_orphan_categories(
+    db: AsyncSession,
+    items: list[ListItem],
+    user_categories: list[Category],
+) -> None:
+    """Repair list items whose category_id points to a category that does not
+    belong to the current user.
+
+    Background: before migration 0003, `_complete_matching_list_items` cached
+    auto_categorize() results on the global `Product.category_id`. The first
+    user "wins" — every subsequent user inherits a category_id pointing to a
+    Category they don't own. The frontend then falls back to "ללא קטגוריה"
+    because there's no name to display.
+
+    This helper looks up the orphan category's NAME (the orphan row still
+    exists in the categories table — it just belongs to another user) and
+    reassigns the item to the current user's same-named category. If no
+    matching name is found, the item is set to NULL category_id and falls
+    into the single uncategorized bucket.
+
+    Lazy by design: runs on every GET /list call, so existing users get
+    automatic repair on their next visit. No one-shot migration required.
+    """
+    user_cat_id_set = {c.id for c in user_categories}
+    user_cat_by_name = {c.name: c.id for c in user_categories}
+
+    orphan_ids: set[uuid.UUID] = {
+        i.category_id
+        for i in items
+        if i.category_id is not None and i.category_id not in user_cat_id_set
+    }
+    if not orphan_ids:
+        return
+
+    name_q = await db.execute(
+        select(Category.id, Category.name).where(Category.id.in_(orphan_ids))
+    )
+    orphan_id_to_name: dict[uuid.UUID, str] = {
+        row[0]: row[1] for row in name_q.all()
+    }
+
+    repair_map: dict[uuid.UUID, uuid.UUID | None] = {
+        oid: user_cat_by_name.get(orphan_id_to_name.get(oid, ""))
+        for oid in orphan_ids
+    }
+
+    repaired: list[ListItem] = []
+    for item in items:
+        if item.category_id in repair_map:
+            item.category_id = repair_map[item.category_id]
+            repaired.append(item)
+
+    if not repaired:
+        return
+
+    await db.flush()
+    # Refresh modified items to avoid MissingGreenlet on the lazy-loaded
+    # `updated_at` when the response is built. Same pattern as
+    # _lazy_backfill_canonical_keys.
+    for item in repaired:
+        await db.refresh(item)
+
+    await logger.ainfo(
+        "lazy_orphan_categories_repaired",
+        repaired_count=len(repaired),
+        orphan_id_count=len(orphan_ids),
+    )
+
+
 @router.get("", response_model=ListResponse)
 async def get_list(
     current_user: User = Depends(get_current_user),
@@ -271,9 +340,12 @@ async def get_list(
         .order_by(Category.display_order)
     )
     categories = list(cats_result.scalars().all())
-    cat_map = {c.id: c for c in categories}
 
-    # Group items by category_id
+    # Lazy: repair items pointing to other users' categories (legacy data
+    # from before migration 0003 / Product.category_id removal).
+    await _lazy_repair_orphan_categories(db, items, categories)
+
+    # Group items by category_id (post-repair)
     groups_dict: dict[uuid.UUID | None, list[ListItem]] = {}
     for item in items:
         groups_dict.setdefault(item.category_id, []).append(item)
@@ -288,12 +360,17 @@ async def get_list(
                 items=[ListItemResponse.model_validate(i) for i in cat_items],
             ))
 
-    # Uncategorized items (category_id is None or category not found)
-    for cat_id, cat_items in groups_dict.items():
-        cat_obj = cat_map.get(cat_id) if cat_id is not None else None
+    # Safety net: merge ALL remaining buckets (None + any orphans the lazy
+    # repair couldn't fix) into a single uncategorized group, instead of
+    # creating one group per orphan id (which made the frontend show
+    # multiple "ללא קטגוריה" rows).
+    uncategorized_items: list[ListItem] = []
+    for cat_items in groups_dict.values():
+        uncategorized_items.extend(cat_items)
+    if uncategorized_items:
         groups.append(CategoryGroup(
-            category=CategoryInfo.model_validate(cat_obj) if cat_obj else None,
-            items=[ListItemResponse.model_validate(i) for i in cat_items],
+            category=None,
+            items=[ListItemResponse.model_validate(i) for i in uncategorized_items],
         ))
 
     total_active = sum(1 for i in items if i.status == ListItemStatus.ACTIVE.value)
@@ -440,14 +517,9 @@ async def recategorize_items(
         new_category_id = await auto_categorize(db, current_user.id, item.name)
         if new_category_id and new_category_id != other_id:
             item.category_id = new_category_id
-            # Cache on linked product for future matches
-            if item.product_id:
-                prod_result = await db.execute(
-                    select(Product).where(Product.id == item.product_id)
-                )
-                product = prod_result.scalar_one_or_none()
-                if product and not product.category_id:
-                    product.category_id = new_category_id
+            # NOTE: do NOT cache to product.category_id — categorization is
+            # strictly per-user. The Product table no longer has a category_id
+            # column (see migration 0003).
             recategorized += 1
 
     if recategorized:

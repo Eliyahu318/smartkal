@@ -223,6 +223,127 @@ class TestGetList:
         assert data["groups"][0]["items"][0]["name"] == "משהו"
 
     @pytest.mark.anyio
+    async def test_get_list_repairs_orphan_category_ids(self) -> None:
+        """A list item whose category_id belongs to another user is repaired:
+        the lazy repair looks up the orphan category's name and reassigns to
+        the current user's same-named category."""
+        # User's "ירקות" category
+        user_vegetables = _mock_category(name="ירקות")
+        user_vegetables.id = uuid.uuid4()
+
+        # Orphan category from another user, with the same name
+        orphan_other_user_vegetables_id = uuid.uuid4()
+
+        # Item points to the orphan id (cross-user pollution scenario)
+        item = _mock_list_item(name="עגבנייה", status="active")
+        item.canonical_key = "עגבנייה"  # avoid lazy backfill flush
+        item.category_id = orphan_other_user_vegetables_id
+
+        mock_session = AsyncMock(spec=AsyncSession)
+
+        # 1. SELECT items
+        items_result = MagicMock()
+        items_result.scalars.return_value.all.return_value = [item]
+        # 2. SELECT categories (user's)
+        cats_result = MagicMock()
+        cats_result.scalars.return_value.all.return_value = [user_vegetables]
+        # 3. _lazy_repair_orphan_categories: SELECT (id, name) for orphan ids
+        orphan_lookup = MagicMock()
+        orphan_lookup.all.return_value = [
+            (orphan_other_user_vegetables_id, "ירקות"),
+        ]
+
+        mock_session.execute.side_effect = [
+            items_result,
+            cats_result,
+            orphan_lookup,
+        ]
+
+        async def fake_refresh(obj: Any) -> None:
+            pass
+
+        mock_session.refresh = AsyncMock(side_effect=fake_refresh)
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/list",
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        # The item should be under the user's "ירקות" category, NOT in
+        # an "uncategorized" group with category=None.
+        assert len(data["groups"]) == 1
+        assert data["groups"][0]["category"] is not None
+        assert data["groups"][0]["category"]["name"] == "ירקות"
+        assert len(data["groups"][0]["items"]) == 1
+        # The in-memory item was repaired in place
+        assert item.category_id == user_vegetables.id
+
+    @pytest.mark.anyio
+    async def test_get_list_merges_multiple_orphan_buckets_into_one(self) -> None:
+        """When multiple distinct orphan category_ids cannot be repaired
+        (e.g. their categories were deleted entirely), all the items collapse
+        into a SINGLE 'category=None' group instead of N separate buckets —
+        which was the bug the user reported."""
+        # Three items with three different orphan ids that don't exist anywhere
+        orphan_a = uuid.uuid4()
+        orphan_b = uuid.uuid4()
+        orphan_c = uuid.uuid4()
+
+        item1 = _mock_list_item(item_id=uuid.uuid4(), name="פריט א", status="active")
+        item1.canonical_key = "פריט א"
+        item1.category_id = orphan_a
+
+        item2 = _mock_list_item(item_id=uuid.uuid4(), name="פריט ב", status="active")
+        item2.canonical_key = "פריט ב"
+        item2.category_id = orphan_b
+
+        item3 = _mock_list_item(item_id=uuid.uuid4(), name="פריט ג", status="active")
+        item3.canonical_key = "פריט ג"
+        item3.category_id = orphan_c
+
+        mock_session = AsyncMock(spec=AsyncSession)
+
+        items_result = MagicMock()
+        items_result.scalars.return_value.all.return_value = [item1, item2, item3]
+        # User has no categories at all (extreme case)
+        cats_result = MagicMock()
+        cats_result.scalars.return_value.all.return_value = []
+        # Orphan id lookup: returns nothing (categories were deleted)
+        orphan_lookup = MagicMock()
+        orphan_lookup.all.return_value = []
+
+        mock_session.execute.side_effect = [
+            items_result,
+            cats_result,
+            orphan_lookup,
+        ]
+        mock_session.refresh = AsyncMock()
+
+        user = _mock_user()
+        app = _setup_app_with_mocks(mock_session, user)
+
+        transport = ASGITransport(app=app)  # type: ignore[arg-type]
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get(
+                "/api/v1/list",
+                headers={"Authorization": "Bearer fake"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        # CRITICAL: exactly ONE group, not three (the bug was three buckets)
+        assert len(data["groups"]) == 1
+        assert data["groups"][0]["category"] is None
+        assert len(data["groups"][0]["items"]) == 3
+
+    @pytest.mark.anyio
     async def test_get_list_sorts_items_alphabetically(self) -> None:
         """Items within each category are returned sorted by name (Hebrew א-ב)."""
         cat = _mock_category()

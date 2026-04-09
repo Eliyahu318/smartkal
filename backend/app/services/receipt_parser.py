@@ -22,13 +22,14 @@ SYSTEM_PROMPT = """\
 RECEIPT_PARSE_PROMPT = """\
 חלץ את כל המוצרים מהקבלה הבאה והחזר JSON בפורמט הזה בדיוק:
 
-{"store_name":"שם הרשת","store_branch":"סניף או null","receipt_date":"YYYY-MM-DD או null","total_amount":123.45,"items":[{"name":"שם מוצר","canonical_name":"שם קנוני","quantity":1.0,"unit_price":12.90,"total_price":12.90,"barcode":"ברקוד או null"}]}
+{"store_name":"שם הרשת","store_branch":"סניף או null","receipt_date":"YYYY-MM-DD או null","total_amount":123.45,"items":[{"name":"שם מוצר","canonical_name":"שם קנוני","category":"שם קטגוריה","quantity":1.0,"unit_price":12.90,"total_price":12.90,"barcode":"ברקוד או null"}]}
 
 כללים:
 - JSON בלבד. בלי ```json, בלי הסברים, בלי טקסט נוסף
 - שמות מוצרים בעברית כפי שמופיעים בקבלה (שדה name)
 - canonical_name = השם הבסיסי של הפריט בלי מותג, בלי גודל/משקל, בלי מילים שיווקיות (פרימיום, מובחר, קלאסי), ובלי תיאורי וריאציה (עגול, ארוך, חתוך). דוגמאות: "עגבניות שרי פרימיום תנובה 250 גרם" → canonical_name: "עגבניות שרי". "חלב תנובה 3% 1 ליטר" → canonical_name: "חלב 3%".
 - חשוב מאוד: אסור להסיר מ-canonical_name מאפיינים שמשנים את המהות של המוצר: אחוזי שומן (1%, 3%, 5%), טעמים (וניל, שוקולד, תות), מילים כמו "לייט", "דל שומן", "זירו", "ללא סוכר", סוגי חלב צמחי (סויה, שקדים, שיבולת שועל). דוגמה: "קוקה קולה זירו" צריך להישאר "קוקה קולה זירו", לא "קוקה קולה".
+- category = שם הקטגוריה אליה הפריט שייך, מתוך הרשימה הקבועה הבאה בלבד: ירקות, פירות, מוצרי חלב, בשר עופות ודגים, לחמים, קפואים, שימורים ויבשים, חטיפים ומתוקים, משקאות, ניקיון, טיפוח, תינוקות, חד-פעמי, תבלינים ורטבים, אחר. אם לא ברור — החזר "אחר". חובה להחזיר אחד מהשמות האלה בדיוק (כולל הכתיב והרווחים), אסור להמציא שמות חדשים.
 - מחירים כמספרים (לא מחרוזות)
 - כמות ברירת מחדל: 1.0
 - התעלם משורות שאינן מוצרים (כותרות, סיכומים, מע"מ, תשלום, ברקודים בודדים)
@@ -58,6 +59,7 @@ class ParsedItem:
     total_price: Decimal | None
     barcode: str | None
     canonical_name: str | None = None
+    category_name: str | None = None
 
 
 @dataclass
@@ -113,6 +115,11 @@ def _validate_and_build(data: dict[str, object]) -> ParsedReceipt:
         if isinstance(canonical_raw, str) and canonical_raw.strip():
             canonical_name = canonical_raw.strip()
 
+        category_raw = raw.get("category")
+        category_name: str | None = None
+        if isinstance(category_raw, str) and category_raw.strip():
+            category_name = category_raw.strip()
+
         items.append(
             ParsedItem(
                 name=name.strip(),
@@ -121,6 +128,7 @@ def _validate_and_build(data: dict[str, object]) -> ParsedReceipt:
                 total_price=_safe_decimal(raw.get("total_price")),
                 barcode=str(raw["barcode"]).strip() if raw.get("barcode") else None,
                 canonical_name=canonical_name,
+                category_name=category_name,
             )
         )
 
