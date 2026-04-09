@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRight, GitMerge, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { motion } from "motion/react";
 import api, { getErrorMessageHe } from "../api/client";
 import { showToast } from "../components/Toast";
+import { IOSButton } from "../components/ui/IOSButton";
+import { springSnappy, tapScale } from "@/lib/motion";
 import type {
   AutoMergeResponse,
   DuplicateGroup,
@@ -42,18 +45,18 @@ function GroupCard({ group, onMerged, onDismissed }: GroupCardProps) {
 
   return (
     <div
-      className="mx-5 mb-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+      className="mx-3 mb-4 rounded-ios-lg border border-separator/40 bg-surface p-4 shadow-ios-sm"
       dir="rtl"
     >
-      <h2 className="mb-3 text-lg font-bold text-gray-900">{group.canonical}</h2>
-      <p className="mb-3 text-sm text-gray-500">
+      <h2 className="mb-2 text-headline text-label">{group.canonical}</h2>
+      <p className="mb-3 text-subhead text-label-secondary/80">
         בחר את הפריט שיישאר. השאר יאוחדו אליו.
       </p>
-      <div className="space-y-2">
+      <div className="space-y-1">
         {group.items.map((item) => (
           <label
             key={item.id}
-            className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-gray-50"
+            className="flex cursor-pointer items-center gap-3 rounded-ios-sm p-2 transition-colors hover:bg-fill/5"
           >
             <input
               type="radio"
@@ -61,19 +64,21 @@ function GroupCard({ group, onMerged, onDismissed }: GroupCardProps) {
               value={item.id}
               checked={targetId === item.id}
               onChange={() => setTargetId(item.id)}
-              className="h-4 w-4 accent-green-600"
+              className="h-4 w-4 accent-brand"
               disabled={merging}
             />
-            <div className="flex-1 min-w-0">
-              <div className="truncate text-sm font-medium text-gray-900">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-callout font-medium text-label">
                 {item.name}
               </div>
               {item.note && (
-                <div className="truncate text-xs text-gray-500">{item.note}</div>
+                <div className="truncate text-caption1 text-label-tertiary/80">
+                  {item.note}
+                </div>
               )}
             </div>
             {item.status === "completed" && (
-              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+              <span className="rounded-full bg-fill/15 px-2 py-0.5 text-caption1 text-label-secondary">
                 הושלם
               </span>
             )}
@@ -81,22 +86,23 @@ function GroupCard({ group, onMerged, onDismissed }: GroupCardProps) {
         ))}
       </div>
       <div className="mt-4 flex gap-2">
-        <button
-          type="button"
+        <IOSButton
+          variant="filled"
+          size="md"
           onClick={handleMerge}
           disabled={merging || !targetId}
-          className="flex-1 rounded-xl bg-green-600 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-green-700 disabled:opacity-50"
+          className="flex-1"
         >
           {merging ? "מאחד..." : "אחד פריטים אלה"}
-        </button>
-        <button
-          type="button"
+        </IOSButton>
+        <IOSButton
+          variant="plain"
+          size="md"
           onClick={() => onDismissed(group.canonical)}
           disabled={merging}
-          className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
         >
           התעלם
-        </button>
+        </IOSButton>
       </div>
     </div>
   );
@@ -140,7 +146,10 @@ export function DuplicatesPage() {
       );
       const { merged_count, group_count } = res.data;
       if (merged_count > 0) {
-        showToast(`${merged_count} פריטים אוחדו ב-${group_count} קבוצות`, "success");
+        showToast(
+          `${merged_count} פריטים אוחדו ב-${group_count} קבוצות`,
+          "success",
+        );
       } else {
         showToast("לא נמצאו קבוצות בטוחות לאיחוד אוטומטי", "info");
       }
@@ -170,34 +179,34 @@ export function DuplicatesPage() {
     <div className="pt-14 pb-24" dir="rtl">
       {/* Header */}
       <div className="flex items-center gap-2 px-5 pb-4">
-        <button
+        <motion.button
           type="button"
           onClick={() => navigate("/list")}
-          className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
+          whileTap={tapScale}
+          transition={springSnappy}
+          className="rounded-ios-sm p-1.5 text-label-tertiary transition-colors hover:bg-fill/15 hover:text-label-secondary"
           aria-label="חזרה לרשימה"
         >
           <ArrowRight className="h-5 w-5" />
-        </button>
-        <h1 className="text-2xl font-bold">איחוד פריטים כפולים</h1>
+        </motion.button>
+        <h1 className="text-title1 text-label">איחוד פריטים כפולים</h1>
       </div>
 
       {/* Loading skeleton */}
       {loading && (
         <div className="flex justify-center py-12">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-green-500" />
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-fill/30 border-t-brand" />
         </div>
       )}
 
       {/* Empty state */}
       {!loading && visibleGroups.length === 0 && (
         <div className="px-5 pt-12 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-50">
-            <GitMerge className="h-8 w-8 text-green-600" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-brand/15">
+            <GitMerge className="h-8 w-8 text-brand" />
           </div>
-          <p className="text-base font-medium text-gray-900">
-            אין כפילויות ברשימה שלך
-          </p>
-          <p className="mt-1 text-sm text-gray-500">
+          <p className="text-headline text-label">אין כפילויות ברשימה שלך</p>
+          <p className="mt-1 text-subhead text-label-secondary/80">
             המערכת מאחדת אוטומטית פריטים דומים בקבלות חדשות
           </p>
         </div>
@@ -206,7 +215,7 @@ export function DuplicatesPage() {
       {/* Group cards */}
       {!loading && visibleGroups.length > 0 && (
         <>
-          <p className="mb-3 px-5 text-sm text-gray-500">
+          <p className="mb-3 px-5 text-subhead text-label-secondary/80">
             נמצאו {visibleGroups.length} קבוצות של פריטים דומים
           </p>
           {visibleGroups.map((group) => (
@@ -220,18 +229,20 @@ export function DuplicatesPage() {
         </>
       )}
 
-      {/* Auto-merge footer */}
+      {/* Auto-merge footer — purple represents AI-driven action */}
       {!loading && visibleGroups.length > 0 && (
         <div className="fixed inset-x-0 bottom-16 z-20 mx-auto max-w-[430px] px-5">
-          <button
+          <motion.button
             type="button"
             onClick={handleAutoMerge}
             disabled={autoMerging}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-purple-700 disabled:opacity-50"
+            whileTap={tapScale}
+            transition={springSnappy}
+            className="flex w-full items-center justify-center gap-2 rounded-ios-lg bg-accent-purple py-3 text-subhead font-semibold text-white shadow-ios-lg transition-colors hover:bg-accent-purple/90 disabled:opacity-50"
           >
             <Sparkles className="h-4 w-4" />
             {autoMerging ? "מאחד..." : "איחוד אוטומטי של כל הקבוצות הבטוחות"}
-          </button>
+          </motion.button>
         </div>
       )}
     </div>

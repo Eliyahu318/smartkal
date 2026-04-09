@@ -48,14 +48,14 @@ class Settings(BaseSettings):
             self.cookie_secure = self.is_production
         if self.cookie_samesite is None:
             # Production deploys frontend/backend on different subdomains
-            # (e.g. onrender.com), which are cross-site due to PSL.
+            # (e.g. up.railway.app), which are cross-site due to PSL.
             # SameSite=None (with Secure=True) allows cross-site cookies.
             self.cookie_samesite = "none" if self.is_production else "lax"
         return self
 
     @property
     def async_database_url(self) -> str:
-        """Normalize DATABASE_URL for asyncpg (Render provides postgresql://)."""
+        """Normalize DATABASE_URL for asyncpg (Railway provides postgresql://)."""
         url = self.database_url
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)

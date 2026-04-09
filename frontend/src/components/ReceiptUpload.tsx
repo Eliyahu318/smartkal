@@ -33,29 +33,39 @@ export function ReceiptUpload({ onFileSelected, disabled }: ReceiptUploadProps) 
       {...getRootProps()}
       data-testid="receipt-dropzone"
       className={`
-        mx-5 rounded-2xl border-2 border-dashed p-8 text-center transition-colors
+        mx-5 rounded-ios-lg border-2 border-dashed p-8 text-center transition-all
         ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer"}
-        ${isDragActive ? "border-green-400 bg-green-50" : rejected ? "border-red-300 bg-red-50" : "border-gray-300 bg-gray-50 hover:border-green-300 hover:bg-green-50/50"}
+        ${
+          isDragActive
+            ? "border-brand bg-brand/10 shadow-ios-lg ring-2 ring-brand/30"
+            : rejected
+              ? "border-danger/50 bg-danger/10"
+              : "border-separator-opaque bg-surface hover:border-brand/40 hover:bg-brand/5"
+        }
       `}
     >
       <input {...getInputProps()} />
       <div className="flex flex-col items-center gap-3">
         {isDragActive ? (
           <>
-            <FileText className="h-10 w-10 text-green-500" />
-            <p className="text-sm font-medium text-green-600">שחרר כאן להעלאה</p>
+            <FileText className="h-10 w-10 text-brand" />
+            <p className="text-callout font-medium text-brand">
+              שחרר כאן להעלאה
+            </p>
           </>
         ) : (
           <>
-            <Upload className="h-10 w-10 text-gray-400" />
-            <p className="text-sm font-medium text-gray-600">
+            <Upload className="h-10 w-10 text-label-tertiary/70" />
+            <p className="text-callout font-medium text-label-secondary">
               גרור קובץ PDF לכאן או לחץ לבחירה
             </p>
-            <p className="text-xs text-gray-400">עד 10MB · קבלות בלבד</p>
+            <p className="text-caption1 text-label-tertiary/70">
+              עד 10MB · קבלות בלבד
+            </p>
           </>
         )}
         {rejected && (
-          <p className="text-xs text-red-500">
+          <p className="text-caption1 text-danger">
             {fileRejections[0]?.errors[0]?.code === "file-too-large"
               ? "הקובץ גדול מדי — מקסימום 10MB"
               : "יש לבחור קובץ PDF בלבד"}

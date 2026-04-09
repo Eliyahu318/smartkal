@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { X, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import type { ListItemData } from "./ShoppingList";
 import api from "../api/client";
+import { Sheet } from "./ui/Sheet";
+import { IOSButton } from "./ui/IOSButton";
 
 interface ItemDetailsSheetProps {
   item: ListItemData | null;
@@ -10,7 +12,12 @@ interface ItemDetailsSheetProps {
   onDelete?: (item: ListItemData) => void;
 }
 
-export function ItemDetailsSheet({ item, onClose, onSaved, onDelete }: ItemDetailsSheetProps) {
+export function ItemDetailsSheet({
+  item,
+  onClose,
+  onSaved,
+  onDelete,
+}: ItemDetailsSheetProps) {
   const [name, setName] = useState("");
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
@@ -68,60 +75,28 @@ export function ItemDetailsSheet({ item, onClose, onSaved, onDelete }: ItemDetai
     onClose();
   }, [item, onDelete, onClose]);
 
-  // Handle backdrop click
-  function handleBackdropClick(e: React.MouseEvent) {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
-  }
-
-  if (!item) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
-      onClick={handleBackdropClick}
-    >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40" />
-
-      {/* Sheet */}
-      <div
-        className="relative w-full max-w-[430px] rounded-t-2xl bg-white px-5 pb-8 pt-4 animate-slide-up"
-        dir="rtl"
-      >
-        {/* Handle + close */}
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex-1" />
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-1 text-gray-400 hover:bg-gray-100"
-            aria-label="סגור"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
+    <Sheet open={!!item} onClose={onClose} ariaLabel="פרטי פריט">
+      <div className="px-5 pb-6 pt-2">
         {/* Form fields */}
         <div className="space-y-4">
           {/* Name (editable) */}
           <div>
-            <label className="mb-1 block text-[13px] font-medium text-gray-500">
+            <label className="mb-1 block text-footnote font-medium text-label-secondary/80">
               שם מוצר
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-[15px] font-bold text-gray-900 outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+              className="w-full rounded-ios border border-separator/40 bg-fill/10 px-3 py-2.5 text-callout font-bold text-label outline-none transition-colors focus:border-brand focus:bg-surface focus:ring-1 focus:ring-brand"
               dir="rtl"
             />
           </div>
 
           {/* Quantity */}
           <div>
-            <label className="mb-1 block text-[13px] font-medium text-gray-500">
+            <label className="mb-1 block text-footnote font-medium text-label-secondary/80">
               כמות
             </label>
             <input
@@ -129,14 +104,14 @@ export function ItemDetailsSheet({ item, onClose, onSaved, onDelete }: ItemDetai
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="לדוגמה: 2, 500 גרם"
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-[15px] outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+              className="w-full rounded-ios border border-separator/40 bg-fill/10 px-3 py-2.5 text-callout text-label outline-none transition-colors placeholder:text-label-tertiary/60 focus:border-brand focus:bg-surface focus:ring-1 focus:ring-brand"
               dir="rtl"
             />
           </div>
 
           {/* Note */}
           <div>
-            <label className="mb-1 block text-[13px] font-medium text-gray-500">
+            <label className="mb-1 block text-footnote font-medium text-label-secondary/80">
               הערה
             </label>
             <textarea
@@ -144,14 +119,14 @@ export function ItemDetailsSheet({ item, onClose, onSaved, onDelete }: ItemDetai
               onChange={(e) => setNote(e.target.value)}
               placeholder="הערה לפריט..."
               rows={2}
-              className="w-full resize-none rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-[15px] outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+              className="w-full resize-none rounded-ios border border-separator/40 bg-fill/10 px-3 py-2.5 text-callout text-label outline-none transition-colors placeholder:text-label-tertiary/60 focus:border-brand focus:bg-surface focus:ring-1 focus:ring-brand"
               dir="rtl"
             />
           </div>
 
           {/* Refresh frequency override */}
           <div>
-            <label className="mb-1 block text-[13px] font-medium text-gray-500">
+            <label className="mb-1 block text-footnote font-medium text-label-secondary/80">
               תדירות רענון (ימים)
             </label>
             <input
@@ -160,17 +135,17 @@ export function ItemDetailsSheet({ item, onClose, onSaved, onDelete }: ItemDetai
               value={refreshDays}
               onChange={(e) => setRefreshDays(e.target.value)}
               placeholder={
-                item.system_refresh_days
+                item?.system_refresh_days
                   ? `מחושב: כל ${item.system_refresh_days} ימים`
                   : "לא מוגדר"
               }
               min={1}
               max={365}
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-[15px] outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+              className="w-full rounded-ios border border-separator/40 bg-fill/10 px-3 py-2.5 text-callout text-label outline-none transition-colors placeholder:text-label-tertiary/60 focus:border-brand focus:bg-surface focus:ring-1 focus:ring-brand"
               dir="rtl"
             />
-            {item.system_refresh_days && !refreshDays && (
-              <p className="mt-1 text-[12px] text-gray-400">
+            {item?.system_refresh_days && !refreshDays && (
+              <p className="mt-1 text-caption1 text-label-tertiary/70">
                 המערכת חישבה כל {item.system_refresh_days} ימים
               </p>
             )}
@@ -178,27 +153,31 @@ export function ItemDetailsSheet({ item, onClose, onSaved, onDelete }: ItemDetai
         </div>
 
         {/* Save button */}
-        <button
-          type="button"
+        <IOSButton
+          variant="filled"
+          size="lg"
+          fullWidth
           onClick={handleSave}
           disabled={saving}
-          className="mt-6 w-full rounded-xl bg-green-500 py-3 text-[15px] font-semibold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+          className="mt-6"
         >
           {saving ? "שומר..." : "שמור"}
-        </button>
+        </IOSButton>
 
         {/* Delete button */}
         {onDelete && (
-          <button
-            type="button"
+          <IOSButton
+            variant="destructive-tinted"
+            size="lg"
+            fullWidth
             onClick={handleDelete}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 py-3 text-[15px] font-semibold text-red-500 transition-colors hover:bg-red-50"
+            className="mt-3"
           >
             <Trash2 className="h-4 w-4" />
             מחק פריט
-          </button>
+          </IOSButton>
         )}
       </div>
-    </div>
+    </Sheet>
   );
 }

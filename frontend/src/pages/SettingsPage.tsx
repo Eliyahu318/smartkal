@@ -1,14 +1,41 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, GitMerge, Sparkles } from "lucide-react";
+import {
+  ChevronRight,
+  GitMerge,
+  Sparkles,
+  Sun,
+  Moon,
+  Smartphone,
+} from "lucide-react";
+import { motion } from "motion/react";
 import { useAuthStore } from "@/store/authStore";
+import { useTheme } from "@/hooks/useTheme";
 import api, { getErrorMessageHe } from "@/api/client";
 import { showToast } from "@/components/Toast";
+import { GroupedList } from "@/components/ui/GroupedList";
+import { GroupedListRow } from "@/components/ui/GroupedListRow";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { springSnappy, tapScale } from "@/lib/motion";
+import type { ThemePreference } from "@/store/themeStore";
 import type { AutoMergeResponse } from "@/types/duplicates";
+
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: "light", label: "אור" },
+  { value: "dark", label: "כהה" },
+  { value: "system", label: "מערכת" },
+];
+
+const THEME_ICONS: Record<ThemePreference, typeof Sun> = {
+  light: Sun,
+  dark: Moon,
+  system: Smartphone,
+};
 
 export function SettingsPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
+  const { theme, setTheme } = useTheme();
   const [autoMerging, setAutoMerging] = useState(false);
 
   const handleAutoMerge = async () => {
@@ -20,7 +47,10 @@ export function SettingsPage() {
       );
       const { merged_count, group_count } = res.data;
       if (merged_count > 0) {
-        showToast(`${merged_count} פריטים אוחדו ב-${group_count} קבוצות`, "success");
+        showToast(
+          `${merged_count} פריטים אוחדו ב-${group_count} קבוצות`,
+          "success",
+        );
       } else {
         showToast("לא נמצאו קבוצות בטוחות לאיחוד אוטומטי", "info");
       }
@@ -31,93 +61,103 @@ export function SettingsPage() {
     }
   };
 
-  return (
-    <div className="px-5 pt-14 pb-8">
-      {/* Header with back button */}
-      <button
-        onClick={() => navigate("/more")}
-        className="mb-4 flex items-center gap-1 text-sm text-green-600"
-      >
-        <ChevronRight className="h-4 w-4" />
-        <span>חזרה</span>
-      </button>
+  const ThemeIcon = THEME_ICONS[theme];
 
-      <h1 className="text-2xl font-bold">הגדרות</h1>
-      <p className="mt-1 mb-6 text-sm text-gray-500">ניהול חשבון והעדפות</p>
+  return (
+    <div className="px-3 pt-14 pb-8">
+      {/* Header with back button */}
+      <div className="mb-2 px-2">
+        <motion.button
+          onClick={() => navigate("/more")}
+          whileTap={tapScale}
+          transition={springSnappy}
+          className="mb-3 flex items-center gap-1 text-subhead text-brand transition-colors hover:text-brand-hover"
+        >
+          <ChevronRight className="h-4 w-4" />
+          <span>חזרה</span>
+        </motion.button>
+
+        <h1 className="text-largeTitle text-label">הגדרות</h1>
+        <p className="mt-1 text-subhead text-label-secondary/80">
+          ניהול חשבון והעדפות
+        </p>
+      </div>
 
       {/* Account section */}
-      <div className="mb-6">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          חשבון
-        </h2>
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-          <div className="px-4 py-3.5">
-            <p className="text-[15px] font-medium text-gray-800">
-              {user?.name ?? "משתמש"}
-            </p>
-            <p className="mt-0.5 text-sm text-gray-500">
+      <GroupedList header="חשבון">
+        <div className="flex items-center gap-3 bg-surface px-4 py-3.5">
+          {user?.picture_url ? (
+            <img
+              src={user.picture_url}
+              alt={user.name ?? "user"}
+              className="h-10 w-10 rounded-full"
+            />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand/15 text-headline text-brand">
+              {(user?.name ?? "?")[0]?.toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="text-headline text-label">{user?.name ?? "משתמש"}</p>
+            <p className="mt-0.5 truncate text-subhead text-label-secondary/80">
               {user?.email ?? ""}
             </p>
           </div>
         </div>
-      </div>
+      </GroupedList>
 
-      {/* Duplicate management section */}
-      <div className="mb-6">
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          ניהול כפילויות
-        </h2>
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-          <button
-            type="button"
-            onClick={() => navigate("/duplicates")}
-            className="flex w-full items-center justify-between px-4 py-3.5 text-right hover:bg-gray-50"
-          >
-            <div className="flex items-center gap-3">
-              <GitMerge className="h-5 w-5 text-gray-500" />
-              <div>
-                <p className="text-[15px] font-medium text-gray-800">בדוק כפילויות</p>
-                <p className="text-xs text-gray-500">
-                  הצג קבוצות של פריטים דומים ואחד אותם ידנית
-                </p>
-              </div>
-            </div>
-            <ChevronRight className="h-4 w-4 -rotate-180 text-gray-400" />
-          </button>
-          <div className="border-t border-gray-100" />
-          <button
-            type="button"
-            onClick={handleAutoMerge}
-            disabled={autoMerging}
-            className="flex w-full items-center justify-between px-4 py-3.5 text-right hover:bg-gray-50 disabled:opacity-50"
-          >
-            <div className="flex items-center gap-3">
-              <Sparkles className="h-5 w-5 text-purple-500" />
-              <div>
-                <p className="text-[15px] font-medium text-gray-800">
-                  {autoMerging ? "מאחד..." : "איחוד אוטומטי של כפילויות בטוחות"}
-                </p>
-                <p className="text-xs text-gray-500">
-                  מאחד רק קבוצות עם דמיון גבוה — בלי לערב פריטים שונים
-                </p>
-              </div>
-            </div>
-          </button>
-        </div>
-      </div>
-
-      {/* App info section */}
-      <div>
-        <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          אודות
-        </h2>
-        <div className="overflow-hidden rounded-xl bg-white shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3.5">
-            <span className="text-[15px] text-gray-800">גרסה</span>
-            <span className="text-sm text-gray-400">1.0.0</span>
+      {/* Appearance section — NEW */}
+      <GroupedList
+        header="מראה"
+        footer="בחר את הערכה הצבעונית של האפליקציה. במצב 'מערכת' המראה יתאים את עצמו אוטומטית להגדרות המכשיר."
+      >
+        <div className="flex items-center gap-3 bg-surface px-4 py-3.5">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ios-sm bg-fill/15">
+            <ThemeIcon className="h-4 w-4 text-label-secondary" />
+          </div>
+          <div className="flex-1">
+            <p className="text-body text-label">ערכת נושא</p>
           </div>
         </div>
-      </div>
+        <div className="bg-surface px-4 pb-3.5 pt-1">
+          <SegmentedControl<ThemePreference>
+            options={THEME_OPTIONS}
+            value={theme}
+            onChange={setTheme}
+            ariaLabel="ערכת נושא"
+          />
+        </div>
+      </GroupedList>
+
+      {/* Duplicate management section */}
+      <GroupedList header="ניהול כפילויות">
+        <GroupedListRow
+          icon={<GitMerge className="h-4 w-4 text-label-secondary" />}
+          iconBg="bg-fill/15"
+          label="בדוק כפילויות"
+          helperText="הצג קבוצות של פריטים דומים ואחד אותם ידנית"
+          showChevron
+          onClick={() => navigate("/duplicates")}
+        />
+        <GroupedListRow
+          icon={<Sparkles className="h-4 w-4 text-accent-purple" />}
+          iconBg="bg-accent-purple/15"
+          label={autoMerging ? "מאחד..." : "איחוד אוטומטי של כפילויות בטוחות"}
+          helperText="מאחד רק קבוצות עם דמיון גבוה — בלי לערב פריטים שונים"
+          onClick={handleAutoMerge}
+          disabled={autoMerging}
+        />
+      </GroupedList>
+
+      {/* App info section */}
+      <GroupedList header="אודות">
+        <GroupedListRow
+          label="גרסה"
+          trailing={
+            <span className="text-subhead text-label-tertiary/80">1.0.0</span>
+          }
+        />
+      </GroupedList>
     </div>
   );
 }

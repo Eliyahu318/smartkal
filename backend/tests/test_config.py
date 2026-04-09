@@ -104,7 +104,7 @@ class TestCookieSamesiteDerivation:
     """Test cookie_samesite is correctly derived from environment.
 
     Production uses SameSite=None because frontend/backend are on different
-    subdomains of a PSL domain (e.g. onrender.com), making them cross-site.
+    subdomains of a PSL domain (e.g. up.railway.app), making them cross-site.
     SameSite=Lax would prevent the browser from sending cookies on cross-site
     POST requests (like /auth/refresh).
     """

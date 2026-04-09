@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { MotionConfig } from "motion/react";
 import { AppShell } from "@/components/AppShell";
 import { ToastContainer } from "@/components/Toast";
 import { ListPage } from "@/pages/ListPage";
@@ -52,8 +53,8 @@ export function App() {
 
   if (initializing) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+      <div className="flex min-h-[100svh] items-center justify-center bg-app">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
       </div>
     );
   }
@@ -62,9 +63,9 @@ export function App() {
   const showOnboarding = !user || !onboardingComplete;
 
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       <ToastContainer />
       {showOnboarding ? <UnauthenticatedRoutes /> : <AuthenticatedRoutes />}
-    </>
+    </MotionConfig>
   );
 }

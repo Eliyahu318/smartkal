@@ -130,18 +130,18 @@ export function SwipeableListItem({
   return (
     <div
       ref={containerRef}
-      className={`relative overflow-hidden transition-all ${
-        deleting ? "max-h-0 opacity-0 duration-250" : "max-h-20"
+      className={`relative overflow-hidden transition-all duration-300 ease-out ${
+        deleting ? "max-h-0 opacity-0" : "max-h-20"
       }`}
       onClick={selectionMode ? handleSelectionClick : undefined}
     >
       {/* Delete button behind */}
       {!selectionMode && (
-        <div className="absolute inset-y-0 end-0 flex w-20 items-center justify-center bg-red-500">
+        <div className="absolute inset-y-0 end-0 flex w-20 items-center justify-center bg-danger">
           <button
             type="button"
             onClick={handleDelete}
-            className="text-[14px] font-semibold text-white"
+            className="text-footnote font-semibold text-white"
           >
             הסר
           </button>
@@ -150,10 +150,10 @@ export function SwipeableListItem({
 
       {/* Swipeable content */}
       <div
-        className="relative z-10 bg-white"
+        className="relative z-10 bg-surface"
         style={{
           transform: selectionMode ? undefined : `translateX(${translateX}px)`,
-          transition: swiping ? "none" : "transform 200ms ease-out",
+          transition: swiping ? "none" : "transform 200ms cubic-bezier(0.32, 0.72, 0, 1)",
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

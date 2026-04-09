@@ -92,7 +92,10 @@ export function ShoppingList({ data, onToggle, onDelete, onLongPress, onResetAll
 
       {/* Empty state */}
       {activeGroups.length === 0 && completedItems.length === 0 && (
-        <p data-testid="list-empty-state" className="px-5 pt-4 text-center text-gray-400">
+        <p
+          data-testid="list-empty-state"
+          className="px-5 pt-4 text-center text-callout text-label-tertiary"
+        >
           הרשימה שלך ריקה. הוסיפי מוצר כדי להתחיל!
         </p>
       )}
@@ -127,11 +130,20 @@ interface CompletedSectionProps {
   onSelectionToggle?: (item: ListItemData) => void;
 }
 
-function CompletedSection({ items, onToggle, onDelete, onLongPress, onResetAll, selectionMode, selectedIds, onSelectionToggle }: CompletedSectionProps) {
+function CompletedSection({
+  items,
+  onToggle,
+  onDelete,
+  onLongPress,
+  onResetAll,
+  selectionMode,
+  selectedIds,
+  onSelectionToggle,
+}: CompletedSectionProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="mt-4 border-t border-gray-100 pt-2">
+    <div className="mt-6 border-t border-separator/40 pt-3">
       <div className="flex items-center px-5 py-2">
         <button
           type="button"
@@ -139,10 +151,10 @@ function CompletedSection({ items, onToggle, onDelete, onLongPress, onResetAll, 
           onClick={() => setExpanded(!expanded)}
           className="flex items-center gap-2"
         >
-          <span className="text-[13px] font-bold text-gray-400">
+          <span className="text-footnote font-semibold uppercase tracking-wide text-label-tertiary/80">
             {items.length} הושלמו
           </span>
-          <span className="text-[12px] text-gray-400">
+          <span className="text-caption1 text-label-tertiary/70">
             {expanded ? "הסתר" : "הצג"}
           </span>
         </button>
@@ -153,7 +165,7 @@ function CompletedSection({ items, onToggle, onDelete, onLongPress, onResetAll, 
           <button
             type="button"
             onClick={onResetAll}
-            className="text-[12px] font-medium text-green-600 hover:text-green-700"
+            className="text-caption1 font-medium text-brand transition-colors hover:text-brand-hover"
           >
             החזר הכל
           </button>
@@ -161,7 +173,7 @@ function CompletedSection({ items, onToggle, onDelete, onLongPress, onResetAll, 
       </div>
 
       {expanded && (
-        <div>
+        <div className="mx-3 mt-1 overflow-hidden rounded-ios-lg bg-surface shadow-ios-sm divide-y divide-separator/40">
           {items.map((item) => (
             <SwipeableListItem
               key={item.id}

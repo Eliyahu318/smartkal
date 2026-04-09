@@ -109,19 +109,19 @@ export function AddItemInput({ onItemAdded }: AddItemInputProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-24 left-1/2 z-30 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full bg-green-500 shadow-lg transition-transform active:scale-95 sm:absolute"
+        className="fixed bottom-24 left-1/2 z-30 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full bg-brand shadow-ios-lg transition-transform active:scale-95 sm:absolute"
         aria-label="הוסף מוצר"
       >
-        <Plus className="h-6 w-6 text-white" />
+        <Plus className="h-6 w-6 text-on-brand" />
       </button>
     );
   }
 
   // Inline input when open
   return (
-    <div className="sticky top-0 z-20 bg-white px-4 pb-2 pt-2 shadow-sm">
+    <div className="sticky top-0 z-20 bg-surface/95 px-4 pb-2 pt-2 backdrop-blur-md">
       <div className="relative">
-        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
+        <div className="flex items-center gap-2 rounded-ios border border-separator/40 bg-fill/10 px-3 py-2 transition-colors focus-within:border-brand/40 focus-within:bg-surface">
           <input
             ref={inputRef}
             type="text"
@@ -130,7 +130,7 @@ export function AddItemInput({ onItemAdded }: AddItemInputProps) {
             onKeyDown={handleKeyDown}
             placeholder="הוסף מוצר..."
             data-testid="add-item-input"
-            className="min-w-0 flex-1 bg-transparent text-[15px] text-gray-900 outline-none placeholder:text-gray-400"
+            className="min-w-0 flex-1 bg-transparent text-callout text-label outline-none placeholder:text-label-tertiary/70"
             dir="rtl"
             disabled={submitting}
           />
@@ -139,32 +139,32 @@ export function AddItemInput({ onItemAdded }: AddItemInputProps) {
               type="button"
               onClick={() => submitItem(value)}
               disabled={submitting}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-500 transition-opacity disabled:opacity-50"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand transition-opacity disabled:opacity-50"
               aria-label="הוסף"
             >
-              <Plus className="h-4 w-4 text-white" />
+              <Plus className="h-4 w-4 text-on-brand" />
             </button>
           ) : (
             <button
               type="button"
               onClick={handleClose}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-200"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-fill/20 transition-colors hover:bg-fill/30"
               aria-label="סגור"
             >
-              <X className="h-4 w-4 text-gray-500" />
+              <X className="h-4 w-4 text-label-tertiary" />
             </button>
           )}
         </div>
 
         {/* Autocomplete dropdown */}
         {showSuggestions && (
-          <div className="absolute start-0 end-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-xl border border-gray-100 bg-white shadow-lg">
+          <div className="absolute start-0 end-0 top-full z-30 mt-1 max-h-48 overflow-y-auto rounded-ios border border-separator/40 bg-surface-elevated shadow-ios-lg">
             {suggestions.map((suggestion) => (
               <button
                 key={suggestion.name}
                 type="button"
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="block w-full px-4 py-2.5 text-start text-[14px] text-gray-800 transition-colors hover:bg-gray-50 active:bg-gray-100"
+                className="block w-full px-4 py-2.5 text-start text-callout text-label transition-colors hover:bg-fill/10 active:bg-fill/15"
               >
                 {suggestion.name}
               </button>

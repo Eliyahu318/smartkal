@@ -13,7 +13,7 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 - AI-powered receipt parsing (Claude Sonnet) with Hebrew fuzzy product matching
 - Price comparison across Israeli supermarket chains via SuperGET API
 - Apple Reminders-style UI, fully RTL Hebrew, installable PWA
-- Production deployment on Render.com
+- Production deployment on Railway
 
 ## Tech Stack
 
@@ -23,7 +23,7 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 - **Prices:** SuperGET API for Israeli supermarket price comparison
 - **PWA:** Workbox for offline support
 - **Auth:** Google OAuth + JWT (access 15min + refresh 30d)
-- **Deploy:** Render.com (static frontend + web backend + PostgreSQL)
+- **Deploy:** Railway (frontend service + backend Docker service + managed PostgreSQL)
 
 ## User Stories
 
@@ -420,18 +420,19 @@ The app is built RTL Hebrew-first, styled like Apple Reminders, and runs as an i
 
 ---
 
-### US-029: Production deployment on Render.com
+### US-029: Production deployment on Railway
 **Description:** As a developer, I want the app deployed to production so that users can access it.
+
+> Note: originally scoped to Render.com (`render.yaml`); migrated to Railway in 2026. Railway is configured via the dashboard rather than an in-repo IaC file.
 
 **Acceptance Criteria:**
 - [x] Backend Dockerfile (multi-stage, slim Python)
-- [x] `render.yaml` with: frontend static site, backend web service, PostgreSQL database
-- [x] Frontend: build command, static publish path, SPA rewrite rule
-- [x] Backend: start command with uvicorn, health check path, env vars from Render
+- [x] Frontend: build command, publish path, SPA rewrite rule (configured in Railway dashboard)
+- [x] Backend: start command with uvicorn, health check path, env vars from Railway
 - [x] CORS configured for production domain
 - [x] Security headers middleware
 - [x] Rate limiting middleware (10 uploads/hour, 100 calls/minute)
-- [ ] Deploy succeeds, health endpoint responds, frontend loads
+- [x] Deploy succeeds, health endpoint responds, frontend loads
 - [x] Typecheck passes
 
 ---

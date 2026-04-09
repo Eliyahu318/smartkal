@@ -2,7 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { App } from "./App";
+import { useThemeStore } from "./store/themeStore";
 import "./index.css";
+
+// Sync the React-side theme store with the .dark class that the FOUC script
+// already applied synchronously in index.html. This must run before render so
+// that the very first paint reads the correct theme state.
+useThemeStore.getState().init();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

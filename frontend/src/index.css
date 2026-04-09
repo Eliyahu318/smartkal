@@ -1,14 +1,107 @@
+@import "@fontsource-variable/heebo";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  /* Light theme — Apple HIG semantic tokens */
+  :root {
+    /* Backgrounds */
+    --bg-app: 242 242 247;
+    --bg-grouped: 255 255 255;
+    --bg-grouped-secondary: 242 242 247;
+    --bg-grouped-tertiary: 255 255 255;
+
+    /* Surfaces */
+    --surface: 255 255 255;
+    --surface-elevated: 255 255 255;
+    --surface-overlay: 255 255 255;
+
+    /* Labels (Apple text hierarchy) */
+    --label: 0 0 0;
+    --label-secondary: 60 60 67;
+    --label-tertiary: 60 60 67;
+    --label-quaternary: 60 60 67;
+
+    /* Separators */
+    --separator: 60 60 67;
+    --separator-opaque: 198 198 200;
+
+    /* Fills */
+    --fill: 120 120 128;
+    --fill-secondary: 120 120 128;
+    --fill-tertiary: 118 118 128;
+
+    /* Brand & status */
+    --brand: 0 199 190;          /* iOS Mint */
+    --brand-hover: 0 178 170;
+    --brand-pressed: 0 156 149;
+    --on-brand: 255 255 255;
+
+    --success: 52 199 89;
+    --warning: 255 159 10;
+    --danger: 255 59 48;
+    --info: 0 122 255;
+    --link: 0 122 255;
+
+    /* Categorical accents */
+    --accent-purple: 175 82 222; /* iOS systemPurple */
+    --accent-blue: 0 122 255;    /* iOS systemBlue */
+  }
+
+  /* Dark theme — Apple HIG semantic tokens */
+  .dark {
+    /* Backgrounds — true OLED black for desktop surround */
+    --bg-app: 0 0 0;
+    --bg-grouped: 28 28 30;
+    --bg-grouped-secondary: 44 44 46;
+    --bg-grouped-tertiary: 58 58 60;
+
+    /* Surfaces */
+    --surface: 28 28 30;
+    --surface-elevated: 44 44 46;
+    --surface-overlay: 58 58 60;
+
+    /* Labels */
+    --label: 255 255 255;
+    --label-secondary: 235 235 245;
+    --label-tertiary: 235 235 245;
+    --label-quaternary: 235 235 245;
+
+    /* Separators */
+    --separator: 84 84 88;
+    --separator-opaque: 56 56 58;
+
+    /* Fills */
+    --fill: 120 120 128;
+    --fill-secondary: 120 120 128;
+    --fill-tertiary: 118 118 128;
+
+    /* Brand & status — brighter for dark contrast */
+    --brand: 99 230 226;
+    --brand-hover: 73 215 211;
+    --brand-pressed: 60 195 191;
+    --on-brand: 0 0 0;
+
+    --success: 48 209 88;
+    --warning: 255 159 10;
+    --danger: 255 69 58;
+    --info: 10 132 255;
+    --link: 10 132 255;
+
+    /* Categorical accents */
+    --accent-purple: 191 90 242;
+    --accent-blue: 10 132 255;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
-    @apply bg-gray-100 text-gray-900 antialiased;
+    @apply bg-app text-label antialiased;
+    font-feature-settings: "cv11", "ss01";
   }
 }
 

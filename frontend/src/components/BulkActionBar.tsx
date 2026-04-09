@@ -1,4 +1,6 @@
 import { Trash2, CheckCircle, RotateCcw, X, GitMerge } from "lucide-react";
+import { motion } from "motion/react";
+import { springGentle, springSnappy, tapScale } from "@/lib/motion";
 
 interface BulkActionBarProps {
   selectedCount: number;
@@ -24,64 +26,79 @@ export function BulkActionBar({
 
   return (
     <div className="fixed inset-x-0 bottom-16 z-40 flex items-center justify-center px-4">
-      <div
-        className="flex w-full max-w-[430px] items-center gap-2 rounded-2xl bg-white px-4 py-3 shadow-lg border border-gray-200"
+      <motion.div
+        layout
+        transition={springGentle}
+        className="flex w-full max-w-[430px] items-center gap-2 rounded-ios-lg border border-separator/40 bg-surface px-4 py-3 shadow-ios-lg"
         dir="rtl"
       >
-        <span className="text-[13px] font-bold text-gray-700">
+        <span className="text-footnote font-bold text-label">
           {selectedCount} נבחרו
         </span>
 
         <div className="flex-1" />
 
-        <button
+        <motion.button
           type="button"
           onClick={onComplete}
-          className="flex items-center gap-1 rounded-lg bg-green-50 px-3 py-1.5 text-[13px] font-medium text-green-700 hover:bg-green-100"
+          whileTap={tapScale}
+          transition={springSnappy}
+          className="flex items-center gap-1 rounded-ios-sm bg-brand/15 px-3 py-1.5 text-footnote font-medium text-brand transition-colors hover:bg-brand/20"
         >
           <CheckCircle className="h-3.5 w-3.5" />
           השלם
-        </button>
+        </motion.button>
 
-        <button
+        <motion.button
           type="button"
           onClick={onActivate}
-          className="flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-1.5 text-[13px] font-medium text-blue-700 hover:bg-blue-100"
+          whileTap={tapScale}
+          transition={springSnappy}
+          className="flex items-center gap-1 rounded-ios-sm bg-accent-blue/15 px-3 py-1.5 text-footnote font-medium text-accent-blue transition-colors hover:bg-accent-blue/20"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           הפעל
-        </button>
+        </motion.button>
 
         {canMerge && (
-          <button
+          <motion.button
             type="button"
             onClick={onMerge}
-            className="flex items-center gap-1 rounded-lg bg-purple-50 px-3 py-1.5 text-[13px] font-medium text-purple-700 hover:bg-purple-100"
+            whileTap={tapScale}
+            transition={springSnappy}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="flex items-center gap-1 rounded-ios-sm bg-accent-purple/15 px-3 py-1.5 text-footnote font-medium text-accent-purple transition-colors hover:bg-accent-purple/20"
             title="אחד את הפריטים הנבחרים לפריט אחד"
           >
             <GitMerge className="h-3.5 w-3.5" />
             אחד
-          </button>
+          </motion.button>
         )}
 
-        <button
+        <motion.button
           type="button"
           onClick={onDelete}
-          className="flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-[13px] font-medium text-red-600 hover:bg-red-100"
+          whileTap={tapScale}
+          transition={springSnappy}
+          className="flex items-center gap-1 rounded-ios-sm bg-danger/15 px-3 py-1.5 text-footnote font-medium text-danger transition-colors hover:bg-danger/20"
         >
           <Trash2 className="h-3.5 w-3.5" />
           מחק
-        </button>
+        </motion.button>
 
-        <button
+        <motion.button
           type="button"
           onClick={onCancel}
-          className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100"
+          whileTap={tapScale}
+          transition={springSnappy}
+          className="rounded-ios-sm p-1.5 text-label-tertiary transition-colors hover:bg-fill/15 hover:text-label-secondary"
           aria-label="ביטול"
         >
           <X className="h-4 w-4" />
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
     </div>
   );
 }

@@ -178,7 +178,7 @@ export function CategoryManagementPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center pt-32">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-green-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-brand border-t-transparent" />
       </div>
     );
   }
@@ -188,7 +188,7 @@ export function CategoryManagementPage() {
       {/* Header */}
       <button
         onClick={() => navigate("/more")}
-        className="mb-4 flex items-center gap-1 text-sm text-green-600"
+        className="mb-4 flex items-center gap-1 text-subhead text-brand transition-colors hover:text-brand-hover"
       >
         <ChevronRight className="h-4 w-4" />
         <span>חזרה</span>
@@ -196,14 +196,14 @@ export function CategoryManagementPage() {
 
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">ניהול קטגוריות</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-largeTitle text-label">ניהול קטגוריות</h1>
+          <p className="mt-1 text-subhead text-label-secondary/80">
             שנה שם, סדר מחדש, או מחק קטגוריות
           </p>
         </div>
         <button
           onClick={() => setShowAdd(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-green-500 text-white shadow-sm active:bg-green-600"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-on-brand shadow-ios-md transition-all active:scale-95 active:bg-brand-pressed"
         >
           <Plus className="h-5 w-5" />
         </button>
@@ -211,7 +211,7 @@ export function CategoryManagementPage() {
 
       {/* Add new category inline */}
       {showAdd && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl bg-white px-4 py-3 shadow-sm">
+        <div className="mb-3 flex items-center gap-2 rounded-ios border border-separator/40 bg-surface px-4 py-3 shadow-ios-sm">
           <input
             ref={addInputRef}
             value={newName}
@@ -221,11 +221,11 @@ export function CategoryManagementPage() {
               if (e.key === "Escape") setShowAdd(false);
             }}
             placeholder="שם קטגוריה חדשה..."
-            className="flex-1 text-[15px] outline-none placeholder:text-gray-300"
+            className="flex-1 bg-transparent text-callout text-label outline-none placeholder:text-label-tertiary/60"
           />
           <button
             onClick={() => void confirmAdd()}
-            className="rounded-lg p-1.5 text-green-600 active:bg-green-50"
+            className="rounded-ios-sm p-1.5 text-brand transition-colors active:bg-brand/10"
           >
             <Check className="h-5 w-5" />
           </button>
@@ -234,7 +234,7 @@ export function CategoryManagementPage() {
               setShowAdd(false);
               setNewName("");
             }}
-            className="rounded-lg p-1.5 text-gray-400 active:bg-gray-50"
+            className="rounded-ios-sm p-1.5 text-label-tertiary transition-colors active:bg-fill/10"
           >
             <X className="h-5 w-5" />
           </button>
@@ -242,7 +242,7 @@ export function CategoryManagementPage() {
       )}
 
       {/* Category list */}
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {categories.map((cat, idx) => (
           <div
             key={cat.id}
@@ -251,17 +251,21 @@ export function CategoryManagementPage() {
             onDragOver={(e) => handleDragOver(e, idx)}
             onDrop={() => void handleDrop()}
             onDragEnd={handleDragEnd}
-            className={`flex items-center gap-2 rounded-xl bg-white px-3 py-3 shadow-sm transition-opacity ${
-              dragIdx === idx ? "opacity-50" : ""
-            } ${overIdx === idx && dragIdx !== idx ? "ring-2 ring-green-300" : ""}`}
+            className={`flex items-center gap-2 rounded-ios bg-surface px-3 py-3 shadow-ios-sm transition-all ${
+              dragIdx === idx ? "scale-[1.02] opacity-60 shadow-ios-lg" : ""
+            } ${
+              overIdx === idx && dragIdx !== idx
+                ? "ring-2 ring-brand/40"
+                : ""
+            }`}
           >
             {/* Drag handle */}
-            <span className="cursor-grab touch-none text-gray-300 active:cursor-grabbing">
+            <span className="cursor-grab touch-none text-label-tertiary/60 active:cursor-grabbing">
               <GripVertical className="h-5 w-5" />
             </span>
 
             {/* Icon */}
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-base">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ios-sm bg-fill/10 text-base">
               {cat.icon ?? "📁"}
             </span>
 
@@ -276,10 +280,10 @@ export function CategoryManagementPage() {
                   if (e.key === "Escape") cancelEdit();
                 }}
                 onBlur={() => void confirmEdit()}
-                className="flex-1 rounded-lg border border-green-300 px-2 py-1 text-[15px] outline-none"
+                className="flex-1 rounded-ios-sm border border-brand/40 bg-surface px-2 py-1 text-callout text-label outline-none focus:ring-2 focus:ring-brand/30"
               />
             ) : (
-              <span className="flex-1 text-[15px] font-medium text-gray-800">
+              <span className="flex-1 text-callout font-medium text-label">
                 {cat.name}
               </span>
             )}
@@ -289,14 +293,14 @@ export function CategoryManagementPage() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => startEdit(cat)}
-                  className="rounded-lg p-1.5 text-gray-400 active:bg-gray-50"
+                  className="rounded-ios-sm p-1.5 text-label-tertiary transition-colors active:bg-fill/10"
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
                 {cat.name !== "אחר" && (
                   <button
                     onClick={() => void handleDelete(cat)}
-                    className="rounded-lg p-1.5 text-red-400 active:bg-red-50"
+                    className="rounded-ios-sm p-1.5 text-danger/80 transition-colors active:bg-danger/10"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -308,7 +312,7 @@ export function CategoryManagementPage() {
       </div>
 
       {categories.length === 0 && (
-        <div className="mt-12 text-center text-sm text-gray-400">
+        <div className="mt-12 text-center text-callout text-label-tertiary">
           אין קטגוריות — הוסף קטגוריה חדשה
         </div>
       )}

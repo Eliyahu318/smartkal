@@ -14,6 +14,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import api from "../api/client";
+import { useChartColors } from "@/hooks/useChartColors";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 
 /* ---------- API response types ---------- */
 
@@ -74,14 +76,6 @@ interface SmartBasketResponse {
   category_recommendations: CategoryRecommendation[];
 }
 
-/* ---------- Chart colours ---------- */
-
-const CATEGORY_COLORS = [
-  "#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6",
-  "#ec4899", "#14b8a6", "#f97316", "#06b6d4", "#84cc16",
-  "#a855f7", "#e11d48", "#0ea5e9", "#10b981", "#6366f1",
-];
-
 /* ---------- Helpers ---------- */
 
 function formatCurrency(value: number): string {
@@ -96,18 +90,21 @@ function hebrewMonth(yyyyMm: string): string {
 
 /* ---------- Period selector ---------- */
 
-const PERIODS = [
-  { key: "week", label: "שבוע" },
-  { key: "month", label: "חודש" },
-  { key: "year", label: "שנה" },
+const PERIOD_OPTIONS = [
+  { value: "week", label: "שבוע" },
+  { value: "month", label: "חודש" },
+  { value: "year", label: "שנה" },
 ] as const;
+
+type Period = (typeof PERIOD_OPTIONS)[number]["value"];
 
 /* ---------- Component ---------- */
 
 export function DashboardPage() {
   const navigate = useNavigate();
+  const colors = useChartColors();
 
-  const [period, setPeriod] = useState<string>("month");
+  const [period, setPeriod] = useState<Period>("month");
   const [spending, setSpending] = useState<SpendingResponse | null>(null);
   const [stores, setStores] = useState<StoresResponse | null>(null);
   const [trends, setTrends] = useState<TrendsResponse | null>(null);
@@ -144,18 +141,18 @@ export function DashboardPage() {
     return () => controller.abort();
   }, [fetchData]);
 
-  /* ---------- Back button ---------- */
+  /* ---------- Header ---------- */
 
   const header = (
     <div className="flex items-center gap-2 px-5 pt-14 pb-2">
       <button
         onClick={() => navigate("/more")}
-        className="flex items-center gap-1 text-green-600"
+        className="flex items-center gap-1 text-brand transition-colors hover:text-brand-hover"
       >
         <ChevronRight className="h-5 w-5" />
-        <span className="text-sm">עוד</span>
+        <span className="text-subhead">עוד</span>
       </button>
-      <h1 className="flex-1 text-2xl font-bold">דשבורד הוצאות</h1>
+      <h1 className="flex-1 text-largeTitle text-label">דשבורד</h1>
     </div>
   );
 
@@ -167,7 +164,10 @@ export function DashboardPage() {
         {header}
         <div className="space-y-4 px-5 pt-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-48 animate-pulse rounded-2xl bg-gray-100" />
+            <div
+              key={i}
+              className="h-48 animate-pulse rounded-ios-lg bg-fill/10"
+            />
           ))}
         </div>
       </div>
@@ -181,9 +181,9 @@ export function DashboardPage() {
     return (
       <div>
         {header}
-        <div className="mt-20 text-center text-gray-400">
-          <p className="text-lg font-medium">אין נתונים עדיין</p>
-          <p className="mt-1 text-sm">העלה קבלות כדי לראות את הדשבורד</p>
+        <div className="mt-20 text-center text-label-tertiary">
+          <p className="text-headline">אין נתונים עדיין</p>
+          <p className="mt-1 text-subhead">העלה קבלות כדי לראות את הדשבורד</p>
         </div>
       </div>
     );
@@ -212,7 +212,14 @@ export function DashboardPage() {
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
     return (
-      <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12}>
+      <text
+        x={x}
+        y={y}
+        fill="#fff"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={12}
+      >
         {percentage.toFixed(0)}%
       </text>
     );
@@ -225,32 +232,39 @@ export function DashboardPage() {
     total: m.total,
   }));
 
+  // Theme-aware tooltip style for Recharts
+  const tooltipStyle = {
+    backgroundColor: "rgb(var(--surface-elevated))",
+    border: `1px solid ${colors.separator}`,
+    borderRadius: "14px",
+    direction: "rtl" as const,
+    textAlign: "right" as const,
+    color: colors.label,
+    fontSize: "13px",
+    boxShadow: "0 12px 24px -6px rgb(0 0 0 / 0.10)",
+  };
+
   return (
-    <div className="pb-24">
+    <div className="pb-8">
       {header}
 
-      {/* Period selector */}
-      <div className="flex gap-2 px-5 pt-2 pb-4">
-        {PERIODS.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => setPeriod(p.key)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              period === p.key
-                ? "bg-green-600 text-white"
-                : "bg-gray-100 text-gray-600"
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
+      {/* Period selector — iOS segmented control */}
+      <div className="px-5 pt-2 pb-4">
+        <SegmentedControl<Period>
+          options={PERIOD_OPTIONS}
+          value={period}
+          onChange={setPeriod}
+          ariaLabel="תקופה"
+        />
       </div>
 
-      {/* Total spending card */}
+      {/* Total spending card — mint gradient */}
       {spending && (
-        <div className="mx-5 rounded-2xl bg-gradient-to-l from-green-500 to-green-600 p-5 text-white">
-          <p className="text-sm opacity-80">סה״כ הוצאות</p>
-          <p className="mt-1 text-3xl font-bold">{formatCurrency(spending.total_spending)}</p>
+        <div className="mx-5 rounded-ios-lg bg-gradient-to-l from-brand to-cyan-500 p-5 text-on-brand shadow-ios-md">
+          <p className="text-subhead opacity-80">סה״כ הוצאות</p>
+          <p className="mt-1 text-largeTitle">
+            {formatCurrency(spending.total_spending)}
+          </p>
         </div>
       )}
 
@@ -258,46 +272,57 @@ export function DashboardPage() {
       {smartBasket && smartBasket.comparisons.length > 0 && (
         <div className="mx-5 mt-4 space-y-4">
           {/* Cheapest store recommendation card */}
-          <div className="rounded-2xl bg-gradient-to-l from-emerald-500 to-emerald-600 p-5 text-white">
-            <p className="text-sm opacity-80">הסופר הזול לרשימה שלך</p>
-            <p className="mt-1 text-2xl font-bold">{smartBasket.cheapest_store}</p>
+          <div className="rounded-ios-lg bg-gradient-to-l from-brand via-teal-500 to-cyan-600 p-5 text-on-brand shadow-ios-md">
+            <p className="text-subhead opacity-80">הסופר הזול לרשימה שלך</p>
+            <p className="mt-1 text-title2">{smartBasket.cheapest_store}</p>
             <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-xl font-semibold">
+              <span className="text-title3">
                 {formatCurrency(smartBasket.cheapest_total)}
               </span>
               {smartBasket.savings > 0 && (
-                <span className="rounded-full bg-white/20 px-3 py-0.5 text-sm font-medium">
+                <span className="rounded-full bg-white/20 px-3 py-0.5 text-subhead font-medium backdrop-blur-sm">
                   חיסכון {formatCurrency(smartBasket.savings)}
                 </span>
               )}
             </div>
             {smartBasket.coverage_text && (
-              <p className="mt-2 text-xs opacity-70">{smartBasket.coverage_text}</p>
+              <p className="mt-2 text-caption1 opacity-70">
+                {smartBasket.coverage_text}
+              </p>
             )}
           </div>
 
           {/* Per-store price comparison */}
-          <div className="rounded-2xl bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-lg font-semibold">עלות הרשימה לפי חנות</h2>
+          <div className="rounded-ios-lg bg-surface p-4 shadow-ios-sm">
+            <h2 className="mb-3 text-headline text-label">עלות הרשימה לפי חנות</h2>
             <div className="space-y-3">
               {smartBasket.comparisons.map((store) => {
                 const isCheapest = store.store_name === smartBasket.cheapest_store;
-                const maxTotal = smartBasket.comparisons[smartBasket.comparisons.length - 1]?.total || 1;
+                const maxTotal =
+                  smartBasket.comparisons[smartBasket.comparisons.length - 1]?.total || 1;
                 const pct = Math.round((store.total / maxTotal) * 100);
                 return (
                   <div key={store.store_name}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className={`font-medium ${isCheapest ? "text-green-700" : "text-gray-800"}`}>
-                        {isCheapest && <span className="ml-1 inline-block h-2 w-2 rounded-full bg-green-500" />}
+                    <div className="flex items-center justify-between text-subhead">
+                      <span
+                        className={`font-medium ${
+                          isCheapest ? "text-brand" : "text-label"
+                        }`}
+                      >
+                        {isCheapest && (
+                          <span className="ml-1 inline-block h-2 w-2 rounded-full bg-brand" />
+                        )}
                         {store.store_name}
                       </span>
-                      <span className="text-gray-500">
+                      <span className="text-label-secondary/80">
                         {formatCurrency(store.total)} · {store.matched_count} מוצרים
                       </span>
                     </div>
-                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100">
+                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-fill/15">
                       <div
-                        className={`h-full rounded-full transition-all ${isCheapest ? "bg-green-500" : "bg-gray-300"}`}
+                        className={`h-full rounded-full transition-all ${
+                          isCheapest ? "bg-brand" : "bg-fill/40"
+                        }`}
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -309,25 +334,27 @@ export function DashboardPage() {
 
           {/* Per-category store recommendations */}
           {smartBasket.category_recommendations.length > 0 && (
-            <div className="rounded-2xl bg-white p-4 shadow-sm">
-              <h2 className="mb-3 text-lg font-semibold">החנות הזולה לפי קטגוריה</h2>
+            <div className="rounded-ios-lg bg-surface p-4 shadow-ios-sm">
+              <h2 className="mb-3 text-headline text-label">
+                החנות הזולה לפי קטגוריה
+              </h2>
               <div className="space-y-2">
                 {smartBasket.category_recommendations.map((rec) => (
                   <div
                     key={rec.category_name}
-                    className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2"
+                    className="flex items-center justify-between rounded-ios bg-fill/10 px-3 py-2"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-800">
+                      <span className="text-subhead font-medium text-label">
                         {rec.category_name}
                       </span>
-                      <span className="text-xs text-gray-400">→</span>
-                      <span className="text-sm font-medium text-green-700">
+                      <span className="text-caption1 text-label-tertiary/70">→</span>
+                      <span className="text-subhead font-medium text-brand">
                         {rec.cheapest_store}
                       </span>
                     </div>
                     {rec.savings > 0 && (
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                      <span className="rounded-full bg-brand/15 px-2 py-0.5 text-caption1 font-medium text-brand">
                         חיסכון {formatCurrency(rec.savings)}
                       </span>
                     )}
@@ -341,8 +368,8 @@ export function DashboardPage() {
 
       {/* Category donut chart */}
       {spending && spending.categories.length > 0 && (
-        <div className="mx-5 mt-4 rounded-2xl bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-lg font-semibold">הוצאות לפי קטגוריה</h2>
+        <div className="mx-5 mt-4 rounded-ios-lg bg-surface p-4 shadow-ios-sm">
+          <h2 className="mb-3 text-headline text-label">הוצאות לפי קטגוריה</h2>
           <div className="flex items-center justify-center">
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
@@ -359,12 +386,15 @@ export function DashboardPage() {
                   labelLine={false}
                 >
                   {spending.categories.map((_, i) => (
-                    <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+                    <Cell
+                      key={i}
+                      fill={colors.categorical[i % colors.categorical.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip
                   formatter={(value: number) => formatCurrency(value)}
-                  contentStyle={{ direction: "rtl", textAlign: "right" }}
+                  contentStyle={tooltipStyle}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -373,13 +403,21 @@ export function DashboardPage() {
           {/* Legend */}
           <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5">
             {spending.categories.map((cat, i) => (
-              <div key={cat.category_name} className="flex items-center gap-2 text-sm">
+              <div
+                key={cat.category_name}
+                className="flex items-center gap-2 text-subhead"
+              >
                 <span
                   className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }}
+                  style={{
+                    backgroundColor:
+                      colors.categorical[i % colors.categorical.length],
+                  }}
                 />
-                <span className="truncate text-gray-700">{cat.category_name}</span>
-                <span className="ms-auto text-gray-400">{cat.percentage.toFixed(0)}%</span>
+                <span className="truncate text-label">{cat.category_name}</span>
+                <span className="ms-auto text-label-tertiary/70">
+                  {cat.percentage.toFixed(0)}%
+                </span>
               </div>
             ))}
           </div>
@@ -388,20 +426,22 @@ export function DashboardPage() {
 
       {/* Store breakdown */}
       {stores && stores.stores.length > 0 && (
-        <div className="mx-5 mt-4 rounded-2xl bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-lg font-semibold">הוצאות לפי חנות</h2>
+        <div className="mx-5 mt-4 rounded-ios-lg bg-surface p-4 shadow-ios-sm">
+          <h2 className="mb-3 text-headline text-label">הוצאות לפי חנות</h2>
           <div className="space-y-3">
             {stores.stores.map((store) => (
               <div key={store.store_name}>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-gray-800">{store.store_name}</span>
-                  <span className="text-gray-500">
+                <div className="flex items-center justify-between text-subhead">
+                  <span className="font-medium text-label">
+                    {store.store_name}
+                  </span>
+                  <span className="text-label-secondary/80">
                     {formatCurrency(store.total)} · {store.receipt_count} קבלות
                   </span>
                 </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-gray-100">
+                <div className="mt-1 h-2 overflow-hidden rounded-full bg-fill/15">
                   <div
-                    className="h-full rounded-full bg-green-500 transition-all"
+                    className="h-full rounded-full bg-brand transition-all"
                     style={{ width: `${store.percentage}%` }}
                   />
                 </div>
@@ -413,33 +453,41 @@ export function DashboardPage() {
 
       {/* Monthly trend chart */}
       {trendData.length > 0 && (
-        <div className="mx-5 mt-4 rounded-2xl bg-white p-4 shadow-sm">
-          <h2 className="mb-3 text-lg font-semibold">מגמת הוצאות חודשית</h2>
+        <div className="mx-5 mt-4 rounded-ios-lg bg-surface p-4 shadow-ios-sm">
+          <h2 className="mb-3 text-headline text-label">מגמת הוצאות חודשית</h2>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={trendData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                stroke={colors.grid}
+              />
               <XAxis
                 dataKey="name"
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 12, fill: colors.labelSecondary }}
+                axisLine={{ stroke: colors.grid }}
+                tickLine={{ stroke: colors.grid }}
                 reversed
               />
               <YAxis
                 tickFormatter={(v: number) => `₪${v}`}
-                tick={{ fontSize: 12 }}
+                tick={{ fontSize: 12, fill: colors.labelSecondary }}
+                axisLine={{ stroke: colors.grid }}
+                tickLine={{ stroke: colors.grid }}
                 width={55}
                 orientation="right"
               />
               <Tooltip
                 formatter={(value: number) => formatCurrency(value)}
-                labelStyle={{ direction: "rtl" }}
-                contentStyle={{ direction: "rtl", textAlign: "right" }}
+                labelStyle={{ direction: "rtl", color: colors.label }}
+                contentStyle={tooltipStyle}
               />
               <Line
                 type="monotone"
                 dataKey="total"
-                stroke="#22c55e"
+                stroke={colors.brand}
                 strokeWidth={2.5}
-                dot={{ fill: "#22c55e", r: 4 }}
+                dot={{ fill: colors.brand, r: 4 }}
                 activeDot={{ r: 6 }}
               />
             </LineChart>

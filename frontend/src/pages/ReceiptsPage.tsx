@@ -56,31 +56,31 @@ function UploadSkeleton() {
   return (
     <div className="mx-5 space-y-4">
       {/* Receipt header skeleton */}
-      <div className="animate-pulse rounded-2xl bg-gray-100 p-4">
+      <div className="animate-pulse rounded-ios-lg bg-fill/10 p-4">
         <div className="flex justify-between">
           <div className="space-y-2">
-            <div className="h-5 w-32 rounded bg-gray-200" />
-            <div className="h-3 w-20 rounded bg-gray-200" />
+            <div className="h-5 w-32 rounded bg-fill/15" />
+            <div className="h-3 w-20 rounded bg-fill/15" />
           </div>
-          <div className="h-8 w-20 rounded bg-gray-200" />
+          <div className="h-8 w-20 rounded bg-fill/15" />
         </div>
       </div>
 
       {/* Match card skeleton */}
-      <div className="animate-pulse rounded-2xl bg-green-50 p-4">
-        <div className="h-5 w-48 rounded bg-green-100" />
-        <div className="mt-2 h-3 w-36 rounded bg-green-100" />
+      <div className="animate-pulse rounded-ios-lg bg-brand/8 p-4">
+        <div className="h-5 w-48 rounded bg-brand/15" />
+        <div className="mt-2 h-3 w-36 rounded bg-brand/15" />
       </div>
 
       {/* Items skeleton */}
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex animate-pulse items-center gap-3 py-2">
-          <div className="h-5 w-5 rounded-full bg-gray-200" />
+          <div className="h-5 w-5 rounded-full bg-fill/15" />
           <div className="flex-1 space-y-1">
-            <div className="h-4 w-40 rounded bg-gray-200" />
-            <div className="h-3 w-20 rounded bg-gray-200" />
+            <div className="h-4 w-40 rounded bg-fill/15" />
+            <div className="h-3 w-20 rounded bg-fill/15" />
           </div>
-          <div className="h-4 w-14 rounded bg-gray-200" />
+          <div className="h-4 w-14 rounded bg-fill/15" />
         </div>
       ))}
     </div>
@@ -107,30 +107,32 @@ function ReceiptHistoryItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-5 py-3 text-start transition-colors hover:bg-gray-50 active:bg-gray-100"
+      className="flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-fill/5 active:bg-fill/10"
     >
-      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
-        <FileText className="h-5 w-5 text-gray-400" />
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-fill/15">
+        <FileText className="h-5 w-5 text-label-tertiary/70" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-gray-800">
+        <p className="truncate text-callout font-medium text-label">
           {receipt.store_name ?? "חנות לא ידועה"}
         </p>
         {receipt.store_branch && (
-          <p className="truncate text-xs text-gray-400">
+          <p className="truncate text-caption1 text-label-tertiary/70">
             {receipt.store_branch}
           </p>
         )}
       </div>
       <div className="flex-shrink-0 text-left">
         {receipt.total_amount && (
-          <p className="text-sm font-medium text-gray-700">
+          <p className="text-callout font-medium text-label-secondary">
             ₪{receipt.total_amount}
           </p>
         )}
-        {dateLabel && <p className="text-xs text-gray-400">{dateLabel}</p>}
+        {dateLabel && (
+          <p className="text-caption1 text-label-tertiary/70">{dateLabel}</p>
+        )}
       </div>
-      <ChevronLeft className="h-4 w-4 flex-shrink-0 text-gray-300" />
+      <ChevronLeft className="h-4 w-4 flex-shrink-0 text-label-tertiary/50" />
     </button>
   );
 }
@@ -190,40 +192,42 @@ function ReceiptDetailView({
       <button
         type="button"
         onClick={onBack}
-        className="flex items-center gap-1 text-sm font-medium text-green-600"
+        className="flex items-center gap-1 text-subhead font-medium text-brand transition-colors hover:text-brand-hover"
       >
         <ArrowRight className="h-4 w-4" />
         חזרה לקבלות
       </button>
 
       {/* Receipt header */}
-      <div className="rounded-2xl bg-gray-50 p-4">
+      <div className="rounded-ios-lg border border-separator/40 bg-surface p-4 shadow-ios-sm">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-lg font-bold text-gray-900">
+            <p className="text-headline text-label">
               {receipt.store_name ?? "חנות לא ידועה"}
             </p>
             {receipt.store_branch && (
-              <p className="text-sm text-gray-500">{receipt.store_branch}</p>
+              <p className="text-subhead text-label-secondary">
+                {receipt.store_branch}
+              </p>
             )}
             {dateLabel && (
-              <p className="mt-1 text-xs text-gray-400">{dateLabel}</p>
+              <p className="mt-1 text-caption1 text-label-tertiary/70">
+                {dateLabel}
+              </p>
             )}
           </div>
           {receipt.total_amount && (
-            <p className="text-xl font-bold text-gray-900">
-              ₪{receipt.total_amount}
-            </p>
+            <p className="text-title2 text-label">₪{receipt.total_amount}</p>
           )}
         </div>
       </div>
 
       {/* Match summary */}
-      <div className="rounded-2xl bg-green-50 border border-green-200 p-4">
-        <p className="text-sm font-medium text-green-800">
+      <div className="rounded-ios-lg border border-brand/20 bg-brand/8 p-4">
+        <p className="text-subhead font-medium text-brand">
           {matchedCount} מוצרים מזוהים · {unmatchedCount} חדשים
         </p>
-        <p className="mt-1 text-xs text-green-600">
+        <p className="mt-1 text-caption1 text-label-secondary/80">
           {receipt.purchases.length} מוצרים סה״כ
         </p>
       </div>
@@ -233,7 +237,7 @@ function ReceiptDetailView({
         type="button"
         onClick={onReprocess}
         disabled={reprocessing}
-        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-green-200 bg-white px-4 py-3 text-sm font-semibold text-green-700 transition-all hover:bg-green-50 disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-ios border border-brand/30 bg-brand/10 px-4 py-3 text-subhead font-semibold text-brand transition-colors hover:bg-brand/15 disabled:opacity-50"
       >
         <RefreshCw className={`h-4 w-4 ${reprocessing ? "animate-spin" : ""}`} />
         {reprocessing ? "מעבד מחדש..." : "עבד מחדש והוסף לרשימה"}
@@ -241,25 +245,29 @@ function ReceiptDetailView({
 
       {/* Items list */}
       <div className="space-y-1">
-        <p className="text-sm font-semibold text-gray-500">מוצרים</p>
+        <p className="text-subhead font-semibold text-label-secondary/80">
+          מוצרים
+        </p>
         {receipt.purchases.map((p) => (
           <div
             key={p.id}
-            className="flex items-center gap-3 rounded-xl py-2"
+            className="flex items-center gap-3 rounded-ios py-2"
           >
             <span
-              className={`text-sm ${p.matched ? "text-green-500" : "text-orange-400"}`}
+              className={`text-subhead ${p.matched ? "text-brand" : "text-warning"}`}
             >
               {p.matched ? "✓" : "⚠"}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm text-gray-800">{p.raw_name}</p>
+              <p className="truncate text-subhead text-label">{p.raw_name}</p>
             </div>
             {p.quantity && p.quantity !== 1 && (
-              <span className="text-xs text-gray-400">×{p.quantity}</span>
+              <span className="text-caption1 text-label-tertiary/70">
+                ×{p.quantity}
+              </span>
             )}
             {p.total_price && (
-              <span className="text-sm font-medium text-gray-600">
+              <span className="text-subhead font-medium text-label-secondary">
                 ₪{p.total_price}
               </span>
             )}
@@ -394,12 +402,12 @@ export function ReceiptsPage() {
     <div className="pt-14">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pb-3">
-        <h1 className="text-2xl font-bold">קבלות</h1>
+        <h1 className="text-largeTitle text-label">קבלות</h1>
         {view === "results" && (
           <button
             type="button"
             onClick={handleNewUpload}
-            className="text-sm font-medium text-green-600"
+            className="text-subhead font-medium text-brand transition-colors hover:text-brand-hover"
           >
             העלאה חדשה
           </button>
@@ -416,8 +424,10 @@ export function ReceiptsPage() {
         <div data-testid="receipt-uploading">
           <div className="px-5 pb-4">
             <div className="flex items-center gap-2">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-green-500" />
-              <p className="text-sm text-gray-500">מנתח את הקבלה...</p>
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-fill/30 border-t-brand" />
+              <p className="text-subhead text-label-secondary">
+                מנתח את הקבלה...
+              </p>
             </div>
           </div>
           <UploadSkeleton />
@@ -436,7 +446,7 @@ export function ReceiptsPage() {
       {/* Receipt detail view */}
       {view === "detail" && detailLoading && (
         <div className="flex justify-center py-12">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-green-500" />
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-fill/30 border-t-brand" />
         </div>
       )}
       {view === "detail" && !detailLoading && selectedReceipt && (
@@ -455,31 +465,31 @@ export function ReceiptsPage() {
       {view === "upload" && (
         <div className="mt-6">
           <div className="flex items-center gap-2 px-5 pb-2">
-            <Receipt className="h-4 w-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-gray-500">
+            <Receipt className="h-4 w-4 text-label-tertiary/70" />
+            <h2 className="text-footnote font-semibold uppercase tracking-wide text-label-secondary/80">
               היסטוריית קבלות
             </h2>
           </div>
 
           {historyLoading && (
             <div className="flex justify-center py-8">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-green-500" />
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-fill/30 border-t-brand" />
             </div>
           )}
 
           {!historyLoading && history.length === 0 && (
-            <p className="px-5 py-8 text-center text-sm text-gray-400">
+            <p className="px-5 py-8 text-center text-callout text-label-tertiary">
               עדיין אין קבלות — העלו את הקבלה הראשונה!
             </p>
           )}
 
           {!historyLoading &&
             Array.from(monthGroups.entries()).map(([month, receipts]) => (
-              <div key={month}>
-                <p className="px-5 pb-1 pt-3 text-xs font-medium text-gray-400">
+              <div key={month} className="mb-4">
+                <p className="px-5 pb-1.5 pt-3 text-footnote font-semibold uppercase tracking-wide text-label-tertiary/70">
                   {month}
                 </p>
-                <div className="divide-y divide-gray-100">
+                <div className="mx-3 overflow-hidden rounded-ios-lg bg-surface shadow-ios-sm divide-y divide-separator/40">
                   {receipts.map((r) => (
                     <ReceiptHistoryItem
                       key={r.id}

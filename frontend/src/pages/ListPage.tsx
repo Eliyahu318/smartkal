@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CheckSquare, GitMerge, ListChecks, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { motion } from "motion/react";
 import api, { getErrorMessageHe } from "../api/client";
 import { AddItemInput } from "../components/AddItemInput";
 import { BulkActionBar } from "../components/BulkActionBar";
@@ -9,6 +10,7 @@ import { PriceComparisonCard } from "../components/PriceComparisonCard";
 import { ShoppingList } from "../components/ShoppingList";
 import type { ListItemData, ListResponse } from "../components/ShoppingList";
 import { showToast } from "../components/Toast";
+import { springSnappy, tapScale } from "@/lib/motion";
 import type { DuplicatesResponse } from "../types/duplicates";
 
 export function ListPage() {
@@ -254,46 +256,52 @@ export function ListPage() {
       <div className="flex items-center px-5 pb-3">
         {selectionMode ? (
           <>
-            <button
+            <motion.button
               type="button"
               onClick={exitSelectionMode}
-              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              whileTap={tapScale}
+              transition={springSnappy}
+              className="rounded-ios-sm p-1.5 text-label-tertiary transition-colors hover:bg-fill/15 hover:text-label-secondary"
               aria-label="ביטול בחירה"
             >
               <X className="h-5 w-5" />
-            </button>
-            <span className="mr-2 text-sm font-medium text-gray-500">
+            </motion.button>
+            <span className="mr-2 text-subhead font-medium text-label-secondary">
               {selectedIds.size > 0 ? `${selectedIds.size} נבחרו` : "בחר פריטים"}
             </span>
             <div className="flex-1" />
-            <button
+            <motion.button
               type="button"
               onClick={handleSelectAll}
-              className={`rounded-lg p-1.5 transition-colors ${
+              whileTap={tapScale}
+              transition={springSnappy}
+              className={`rounded-ios-sm p-1.5 transition-colors ${
                 allSelected
-                  ? "text-green-600 hover:bg-green-50"
-                  : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  ? "text-brand hover:bg-brand/10"
+                  : "text-label-tertiary hover:bg-fill/15 hover:text-label-secondary"
               }`}
               aria-label={allSelected ? "בטל בחירת הכל" : "בחר הכל"}
               title={allSelected ? "בטל בחירת הכל" : "בחר הכל"}
             >
               <CheckSquare className="h-5 w-5" />
-            </button>
+            </motion.button>
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-bold">רשימת קניות</h1>
+            <h1 className="text-largeTitle text-label">רשימת קניות</h1>
             <div className="flex-1" />
             {data && (data.total_active > 0 || data.total_completed > 0) && (
-              <button
+              <motion.button
                 type="button"
                 onClick={enterSelectionMode}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                whileTap={tapScale}
+                transition={springSnappy}
+                className="mt-2 rounded-ios-sm p-1.5 text-label-tertiary transition-colors hover:bg-fill/15 hover:text-label-secondary"
                 aria-label="בחירה מרובה"
                 title="בחירה מרובה"
               >
                 <ListChecks className="h-5 w-5" />
-              </button>
+              </motion.button>
             )}
           </>
         )}
@@ -301,15 +309,20 @@ export function ListPage() {
 
       {/* Duplicates badge — surfaces if the dedup engine found candidate groups */}
       {!selectionMode && duplicateGroupCount > 0 && (
-        <div className="px-5 pb-3">
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={springSnappy}
+          className="px-5 pb-3"
+        >
           <Link
             to="/duplicates"
-            className="flex items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-medium text-purple-800 hover:bg-purple-100"
+            className="flex items-center gap-2 rounded-ios border border-accent-purple/20 bg-accent-purple/10 px-3 py-2 text-subhead font-medium text-accent-purple transition-colors hover:bg-accent-purple/15"
           >
             <GitMerge className="h-4 w-4" />
             <span>נמצאו {duplicateGroupCount} קבוצות כפילויות — לחץ לאיחוד</span>
           </Link>
-        </div>
+        </motion.div>
       )}
 
       {/* Price comparison card — hidden when no price data */}
@@ -321,13 +334,13 @@ export function ListPage() {
       {/* Loading */}
       {loading && (
         <div className="flex justify-center py-12">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-300 border-t-green-500" />
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-fill/30 border-t-brand" />
         </div>
       )}
 
       {/* Error */}
       {error && (
-        <p className="px-5 py-4 text-center text-red-500">{error}</p>
+        <p className="px-5 py-4 text-center text-callout text-danger">{error}</p>
       )}
 
       {/* List */}

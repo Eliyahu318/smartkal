@@ -88,4 +88,4 @@ cd backend && alembic upgrade head
 
 ## Deployment
 
-Production on Render.com (`render.yaml`): managed PostgreSQL, backend as Docker container, frontend as static site with SPA rewrites. Environment config via Pydantic Settings reading from env vars.
+Production on Railway: managed PostgreSQL, backend as Docker container (uses `backend/Dockerfile`), frontend as a separate Railway service. Configured via the Railway dashboard (no `railway.toml`/`nixpacks.toml` in the repo) — env vars are set per-service in the dashboard and read by the backend through Pydantic Settings. Frontend and backend are deployed on separate `up.railway.app` subdomains, which is why `cookie_samesite="none"` is required in production (cross-site cookies due to PSL).

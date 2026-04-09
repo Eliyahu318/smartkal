@@ -101,25 +101,25 @@ function MatchSummaryCard({ counts }: { counts: MatchCounts }) {
   const autoMerged = counts.auto_merged_to_existing ?? 0;
 
   return (
-    <div className="mx-5 rounded-2xl bg-green-50 p-4">
-      <div className="flex items-center gap-2 text-green-700">
+    <div className="mx-5 rounded-ios-lg border border-brand/20 bg-brand/8 p-4">
+      <div className="flex items-center gap-2 text-brand">
         <ShoppingCart className="h-5 w-5" />
-        <span className="text-lg font-bold">
+        <span className="text-headline">
           {counts.completed_items} פריטים הושלמו ברשימה
         </span>
       </div>
-      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-green-600">
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-subhead text-label-secondary">
         {counts.barcode > 0 && <span>ברקוד: {counts.barcode}</span>}
         {counts.exact_name > 0 && <span>שם מדויק: {counts.exact_name}</span>}
         {counts.fuzzy > 0 && <span>התאמה חכמה: {counts.fuzzy}</span>}
       </div>
       {autoMerged > 0 && (
-        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-medium text-cyan-800">
+        <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-accent-purple/15 px-2.5 py-1 text-caption1 font-medium text-accent-purple">
           <span>{autoMerged} פריטים אוחדו אוטומטית עם פריטים קיימים</span>
         </div>
       )}
       {counts.new > 0 && (
-        <p className="mt-2 text-sm text-gray-500">
+        <p className="mt-2 text-subhead text-label-tertiary">
           {counts.new} מוצרים חדשים נוספו מתוך {total} סה&quot;כ
         </p>
       )}
@@ -143,11 +143,11 @@ function CategoryBreakdownSection({
         className="flex w-full items-center justify-between py-2"
         onClick={() => setOpen(!open)}
       >
-        <span className="text-sm font-semibold text-gray-700">
+        <span className="text-subhead font-semibold text-label-secondary">
           פירוט לפי קטגוריה
         </span>
         <ChevronDown
-          className={`h-4 w-4 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-label-tertiary/70 transition-transform ${open ? "rotate-180" : ""}`}
         />
       </button>
       {open && (
@@ -155,12 +155,12 @@ function CategoryBreakdownSection({
           {breakdown.map((cat) => (
             <div
               key={cat.name}
-              className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
+              className="flex items-center justify-between rounded-ios bg-fill/10 px-3 py-2"
             >
-              <span className="text-sm text-gray-600">
+              <span className="text-subhead text-label-secondary">
                 {cat.name} ({cat.count})
               </span>
-              <span className="text-sm font-medium">
+              <span className="text-subhead font-medium text-label">
                 ₪{cat.total.toFixed(2)}
               </span>
             </div>
@@ -183,8 +183,8 @@ function PurchaseItem({
       <div
         className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${
           purchase.matched
-            ? "bg-green-100 text-green-600"
-            : "bg-orange-100 text-orange-500"
+            ? "bg-brand/15 text-brand"
+            : "bg-warning/15 text-warning"
         }`}
       >
         {purchase.matched ? (
@@ -195,21 +195,21 @@ function PurchaseItem({
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-gray-800">{purchase.raw_name}</p>
-        <div className="flex gap-2 text-xs text-gray-400">
+        <p className="truncate text-subhead text-label">{purchase.raw_name}</p>
+        <div className="flex gap-2 text-caption1 text-label-tertiary/70">
           {purchase.quantity != null && <span>×{purchase.quantity}</span>}
           {purchase.unit_price && <span>₪{purchase.unit_price}/יח&apos;</span>}
         </div>
       </div>
 
-      <span className="flex-shrink-0 text-sm font-medium text-gray-700">
+      <span className="flex-shrink-0 text-subhead font-medium text-label-secondary">
         {purchase.total_price ? `₪${purchase.total_price}` : "—"}
       </span>
 
       <button
         type="button"
         onClick={() => onDelete(purchase.id)}
-        className="flex-shrink-0 rounded-full p-1 text-gray-300 transition-colors hover:bg-red-50 hover:text-red-400"
+        className="flex-shrink-0 rounded-full p-1 text-label-tertiary/60 transition-colors hover:bg-danger/10 hover:text-danger"
         aria-label="מחק פריט"
       >
         <Trash2 className="h-4 w-4" />
@@ -239,25 +239,23 @@ export function ReceiptResults({ result, onSave, saving }: ReceiptResultsProps) 
   return (
     <div className="space-y-4 pb-6">
       {/* Receipt header */}
-      <div className="mx-5 rounded-2xl bg-white p-4 shadow-sm">
+      <div className="mx-5 rounded-ios-lg bg-surface p-4 shadow-ios-sm">
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-bold text-gray-800">
+            <h3 className="text-headline text-label">
               {storeName ?? "חנות לא ידועה"}
             </h3>
             {storeBranch && (
-              <p className="text-sm text-gray-500">{storeBranch}</p>
+              <p className="text-subhead text-label-secondary">{storeBranch}</p>
             )}
             {receiptDate && (
-              <p className="text-xs text-gray-400">{receiptDate}</p>
+              <p className="text-caption1 text-label-tertiary/70">{receiptDate}</p>
             )}
           </div>
           {totalAmount && (
             <div className="text-left">
-              <p className="text-2xl font-bold text-green-600">
-                ₪{totalAmount}
-              </p>
-              <p className="text-xs text-gray-400">סה&quot;כ</p>
+              <p className="text-title2 text-brand">₪{totalAmount}</p>
+              <p className="text-caption1 text-label-tertiary/70">סה&quot;כ</p>
             </div>
           )}
         </div>
@@ -268,9 +266,9 @@ export function ReceiptResults({ result, onSave, saving }: ReceiptResultsProps) 
 
       {/* Unmatched items warning */}
       {unmatched.length > 0 && (
-        <div className="mx-5 flex items-center gap-2 rounded-xl bg-orange-50 px-4 py-3">
-          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-orange-500" />
-          <p className="text-sm text-orange-700">
+        <div className="mx-5 flex items-center gap-2 rounded-ios border border-warning/20 bg-warning/10 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 text-warning" />
+          <p className="text-subhead text-warning">
             {unmatched.length} מוצרים לא זוהו — יתווספו כמוצרים חדשים
           </p>
         </div>
@@ -281,10 +279,10 @@ export function ReceiptResults({ result, onSave, saving }: ReceiptResultsProps) 
 
       {/* Parsed items list */}
       <div>
-        <h4 className="px-5 pb-2 text-sm font-semibold text-gray-700">
+        <h4 className="px-5 pb-2 text-subhead font-semibold text-label-secondary">
           פריטים ({purchases.length})
         </h4>
-        <div className="divide-y divide-gray-100">
+        <div className="divide-y divide-separator/40">
           {purchases.map((purchase) => (
             <PurchaseItem
               key={purchase.id}
@@ -302,11 +300,11 @@ export function ReceiptResults({ result, onSave, saving }: ReceiptResultsProps) 
           data-testid="receipt-save"
           onClick={onSave}
           disabled={saving || purchases.length === 0}
-          className="w-full rounded-xl bg-green-500 py-3.5 text-base font-bold text-white transition-colors hover:bg-green-600 disabled:opacity-50"
+          className="w-full rounded-ios bg-brand py-3.5 text-headline text-on-brand transition-colors hover:bg-brand-hover disabled:opacity-50"
         >
           {saving ? (
             <span className="flex items-center justify-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-on-brand border-t-transparent" />
               שומר...
             </span>
           ) : (
