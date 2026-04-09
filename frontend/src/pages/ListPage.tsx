@@ -8,13 +8,14 @@ import { BulkActionBar } from "../components/BulkActionBar";
 import { ItemDetailsSheet } from "../components/ItemDetailsSheet";
 import { PriceComparisonCard } from "../components/PriceComparisonCard";
 import { ShoppingList } from "../components/ShoppingList";
-import type { ListItemData, ListResponse } from "../components/ShoppingList";
+import type { CategoryInfo, ListItemData, ListResponse } from "../components/ShoppingList";
 import { showToast } from "../components/Toast";
 import { springSnappy, tapScale } from "@/lib/motion";
 import type { DuplicatesResponse } from "../types/duplicates";
 
 export function ListPage() {
   const [data, setData] = useState<ListResponse | null>(null);
+  const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailsItem, setDetailsItem] = useState<ListItemData | null>(null);
@@ -53,6 +54,15 @@ export function ListPage() {
     }
   }, []);
 
+  const fetchCategories = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const res = await api.get<CategoryInfo[]>("/api/v1/categories", { signal });
+      setCategories(res.data);
+    } catch {
+      // Silent — picker simply stays hidden if categories can't be loaded
+    }
+  }, []);
+
   useEffect(() => {
     const controller = new AbortController();
 
@@ -72,11 +82,14 @@ export function ListPage() {
       // Check for duplicates after the list is loaded — must run AFTER fetchList
       // so the lazy backfill of canonical_key has had a chance to run.
       await fetchDuplicates(controller.signal);
+      // Categories are independent of the list — fetch in parallel-ish (after list
+      // so it doesn't compete with the critical path) for the item details picker.
+      await fetchCategories(controller.signal);
     }
 
     init();
     return () => controller.abort();
-  }, [fetchList, fetchDuplicates]);
+  }, [fetchList, fetchDuplicates, fetchCategories]);
 
   const handleToggle = useCallback(async (item: ListItemData) => {
     const endpoint = item.status === "active"
@@ -374,6 +387,7 @@ export function ListPage() {
       {/* Item details bottom sheet */}
       <ItemDetailsSheet
         item={detailsItem}
+        categories={categories}
         onClose={() => setDetailsItem(null)}
         onSaved={handleDetailsSaved}
         onDelete={handleDelete}

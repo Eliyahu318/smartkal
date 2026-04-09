@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Trash2 } from "lucide-react";
-import type { ListItemData } from "./ShoppingList";
+import type { CategoryInfo, ListItemData } from "./ShoppingList";
 import api from "../api/client";
 import { Sheet } from "./ui/Sheet";
 import { IOSButton } from "./ui/IOSButton";
 
 interface ItemDetailsSheetProps {
   item: ListItemData | null;
+  categories: CategoryInfo[];
   onClose: () => void;
   onSaved: () => void;
   onDelete?: (item: ListItemData) => void;
@@ -14,6 +15,7 @@ interface ItemDetailsSheetProps {
 
 export function ItemDetailsSheet({
   item,
+  categories,
   onClose,
   onSaved,
   onDelete,
@@ -22,6 +24,7 @@ export function ItemDetailsSheet({
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
   const [refreshDays, setRefreshDays] = useState("");
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -30,26 +33,46 @@ export function ItemDetailsSheet({
       setQuantity(item.quantity ?? "");
       setNote(item.note ?? "");
       setRefreshDays(item.auto_refresh_days?.toString() ?? "");
+      setCategoryId(item.category_id);
     }
   }, [item]);
+
+  const sortedCategories = useMemo(
+    () => [...categories].sort((a, b) => a.display_order - b.display_order),
+    [categories],
+  );
 
   const handleSave = useCallback(async () => {
     if (!item) return;
     setSaving(true);
 
     try {
-      // Update item details (name + quantity + note)
+      // Update item details (name + quantity + note + category)
+      const categoryChanged = categoryId !== null && categoryId !== item.category_id;
       const hasItemChanges =
         name !== item.name ||
         quantity !== (item.quantity ?? "") ||
-        note !== (item.note ?? "");
+        note !== (item.note ?? "") ||
+        categoryChanged;
 
       if (hasItemChanges) {
-        await api.put(`/api/v1/list/items/${item.id}`, {
+        // Build the body conditionally — only send category_id when it actually
+        // changed, since the backend ignores `null` here and we never want to
+        // accidentally re-send the same value.
+        const body: {
+          name: string;
+          quantity: string | null;
+          note: string | null;
+          category_id?: string;
+        } = {
           name: name.trim() || item.name,
           quantity: quantity || null,
           note: note || null,
-        });
+        };
+        if (categoryChanged && categoryId) {
+          body.category_id = categoryId;
+        }
+        await api.put(`/api/v1/list/items/${item.id}`, body);
       }
 
       // Update frequency preference if changed
@@ -67,7 +90,7 @@ export function ItemDetailsSheet({
     } finally {
       setSaving(false);
     }
-  }, [item, name, quantity, note, refreshDays, onSaved, onClose]);
+  }, [item, name, quantity, note, refreshDays, categoryId, onSaved, onClose]);
 
   const handleDelete = useCallback(() => {
     if (!item || !onDelete) return;
@@ -123,6 +146,36 @@ export function ItemDetailsSheet({
               dir="rtl"
             />
           </div>
+
+          {/* Category picker */}
+          {sortedCategories.length > 0 && (
+            <div>
+              <label className="mb-1 block text-footnote font-medium text-label-secondary/80">
+                קטגוריה
+              </label>
+              <div className="flex flex-wrap gap-2" dir="rtl">
+                {sortedCategories.map((category) => {
+                  const isSelected = category.id === categoryId;
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => setCategoryId(category.id)}
+                      aria-pressed={isSelected}
+                      className={`rounded-full px-3 py-1.5 text-footnote font-medium transition-colors ${
+                        isSelected
+                          ? "bg-brand text-white"
+                          : "bg-fill/15 text-label-secondary hover:bg-fill/25"
+                      }`}
+                    >
+                      {category.icon ? `${category.icon} ` : ""}
+                      {category.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Refresh frequency override */}
           <div>
