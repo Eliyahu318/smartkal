@@ -48,7 +48,7 @@ interface ShoppingListProps {
   data: ListResponse;
   onToggle?: (item: ListItemData) => void;
   onDelete?: (item: ListItemData) => void;
-  onLongPress?: (item: ListItemData) => void;
+  onEdit?: (item: ListItemData) => void;
   onResetAll?: () => void;
   onRecategorize?: () => void;
   recategorizing?: boolean;
@@ -57,7 +57,7 @@ interface ShoppingListProps {
   onSelectionToggle?: (item: ListItemData) => void;
 }
 
-export function ShoppingList({ data, onToggle, onDelete, onLongPress, onResetAll, onRecategorize, recategorizing, selectionMode, selectedIds, onSelectionToggle }: ShoppingListProps) {
+export function ShoppingList({ data, onToggle, onDelete, onEdit, onResetAll, onRecategorize, recategorizing, selectionMode, selectedIds, onSelectionToggle }: ShoppingListProps) {
   // Separate active and completed groups
   const activeGroups: CategoryGroup[] = [];
   const completedItems: ListItemData[] = [];
@@ -81,7 +81,7 @@ export function ShoppingList({ data, onToggle, onDelete, onLongPress, onResetAll
           group={group}
           onToggle={onToggle}
           onDelete={onDelete}
-          onLongPress={onLongPress}
+          onEdit={onEdit}
           selectionMode={selectionMode}
           selectedIds={selectedIds}
           onSelectionToggle={onSelectionToggle}
@@ -106,7 +106,7 @@ export function ShoppingList({ data, onToggle, onDelete, onLongPress, onResetAll
           items={completedItems}
           onToggle={onToggle}
           onDelete={onDelete}
-          onLongPress={onLongPress}
+          onEdit={onEdit}
           onResetAll={onResetAll}
           selectionMode={selectionMode}
           selectedIds={selectedIds}
@@ -123,7 +123,7 @@ interface CompletedSectionProps {
   items: ListItemData[];
   onToggle?: (item: ListItemData) => void;
   onDelete?: (item: ListItemData) => void;
-  onLongPress?: (item: ListItemData) => void;
+  onEdit?: (item: ListItemData) => void;
   onResetAll?: () => void;
   selectionMode?: boolean;
   selectedIds?: Set<string>;
@@ -134,7 +134,7 @@ function CompletedSection({
   items,
   onToggle,
   onDelete,
-  onLongPress,
+  onEdit,
   onResetAll,
   selectionMode,
   selectedIds,
@@ -180,7 +180,7 @@ function CompletedSection({
               item={item}
               onToggle={onToggle}
               onDelete={onDelete}
-              onLongPress={onLongPress}
+              onEdit={onEdit}
               selectionMode={selectionMode}
               selected={selectedIds?.has(item.id)}
               onSelectionToggle={onSelectionToggle}

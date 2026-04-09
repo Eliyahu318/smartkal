@@ -72,14 +72,16 @@ export function Sheet({ open, onClose, children, ariaLabel }: SheetProps) {
                 onClose();
               }
             }}
-            className="fixed inset-x-0 bottom-0 z-50 mx-auto max-w-phone rounded-t-ios-sheet bg-surface shadow-ios-sheet pb-safe"
+            className="fixed inset-x-0 bottom-0 z-50 mx-auto flex max-h-[90dvh] max-w-phone flex-col rounded-t-ios-sheet bg-surface shadow-ios-sheet pb-safe"
             dir="rtl"
           >
-            {/* Grab handle */}
-            <div className="flex justify-center pb-1 pt-2">
+            {/* Grab handle — stays pinned at top while body scrolls */}
+            <div className="flex flex-shrink-0 justify-center pb-1 pt-2">
               <div className="h-1 w-9 rounded-full bg-fill/40" />
             </div>
-            {children}
+            <div className="flex-1 overflow-y-auto overscroll-contain">
+              {children}
+            </div>
           </motion.div>
         </>
       )}

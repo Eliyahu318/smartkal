@@ -113,7 +113,7 @@ export function ListPage() {
     }
   }, [fetchList]);
 
-  const handleLongPress = useCallback((item: ListItemData) => {
+  const handleEdit = useCallback((item: ListItemData) => {
     if (selectionMode) return;
     setDetailsItem(item);
   }, [selectionMode]);
@@ -362,7 +362,7 @@ export function ListPage() {
           data={data}
           onToggle={handleToggle}
           onDelete={handleDelete}
-          onLongPress={handleLongPress}
+          onEdit={handleEdit}
           onResetAll={handleResetAll}
           onRecategorize={handleRecategorize}
           recategorizing={recategorizing}

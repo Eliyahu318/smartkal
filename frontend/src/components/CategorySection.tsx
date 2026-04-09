@@ -8,7 +8,7 @@ interface CategorySectionProps {
   group: CategoryGroup;
   onToggle?: (item: ListItemData) => void;
   onDelete?: (item: ListItemData) => void;
-  onLongPress?: (item: ListItemData) => void;
+  onEdit?: (item: ListItemData) => void;
   selectionMode?: boolean;
   selectedIds?: Set<string>;
   onSelectionToggle?: (item: ListItemData) => void;
@@ -20,7 +20,7 @@ export function CategorySection({
   group,
   onToggle,
   onDelete,
-  onLongPress,
+  onEdit,
   selectionMode,
   selectedIds,
   onSelectionToggle,
@@ -89,7 +89,7 @@ export function CategorySection({
                   item={item}
                   onToggle={onToggle}
                   onDelete={onDelete}
-                  onLongPress={onLongPress}
+                  onEdit={onEdit}
                   selectionMode={selectionMode}
                   selected={selectedIds?.has(item.id)}
                   onSelectionToggle={onSelectionToggle}

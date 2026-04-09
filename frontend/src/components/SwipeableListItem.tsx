@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState } from "react";
 import type { ListItemData } from "./ShoppingList";
 import { ListItem } from "./ListItem";
 
@@ -6,20 +6,27 @@ interface SwipeableListItemProps {
   item: ListItemData;
   onToggle?: (item: ListItemData) => void;
   onDelete?: (item: ListItemData) => void;
-  onLongPress?: (item: ListItemData) => void;
+  /** Fired on double-tap (touch) or double-click (mouse) — opens details sheet. */
+  onEdit?: (item: ListItemData) => void;
   selectionMode?: boolean;
   selected?: boolean;
   onSelectionToggle?: (item: ListItemData) => void;
 }
 
 const DELETE_THRESHOLD = 80;
-const LONG_PRESS_MS = 500;
+// Max ms between two taps to count as a double-tap.
+const DOUBLE_TAP_MS = 300;
+// Movement threshold before we decide whether the gesture is a horizontal
+// swipe or a vertical scroll. Below this, we don't commit to a direction.
+const DIRECTION_LOCK_PX = 8;
+
+type ScrollLock = "none" | "horizontal" | "vertical";
 
 export function SwipeableListItem({
   item,
   onToggle,
   onDelete,
-  onLongPress,
+  onEdit,
   selectionMode,
   selected,
   onSelectionToggle,
@@ -29,31 +36,20 @@ export function SwipeableListItem({
   const [deleting, setDeleting] = useState(false);
 
   const startXRef = useRef(0);
+  const startYRef = useRef(0);
   const currentXRef = useRef(0);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const didSwipeRef = useRef(false);
+  const scrollLockRef = useRef<ScrollLock>("none");
+  const lastTapRef = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const clearLongPress = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  }, []);
 
   function handleTouchStart(e: React.TouchEvent) {
     if (selectionMode) return;
     const touch = e.touches[0];
     if (!touch) return;
     startXRef.current = touch.clientX;
+    startYRef.current = touch.clientY;
     currentXRef.current = touch.clientX;
-    didSwipeRef.current = false;
-
-    longPressTimer.current = setTimeout(() => {
-      if (!didSwipeRef.current) {
-        onLongPress?.(item);
-      }
-    }, LONG_PRESS_MS);
+    scrollLockRef.current = "none";
   }
 
   function handleTouchMove(e: React.TouchEvent) {
@@ -61,13 +57,28 @@ export function SwipeableListItem({
     const touch = e.touches[0];
     if (!touch) return;
     currentXRef.current = touch.clientX;
-    const deltaX = startXRef.current - touch.clientX;
 
-    if (Math.abs(deltaX) > 10) {
-      didSwipeRef.current = true;
-      clearLongPress();
+    const deltaX = startXRef.current - touch.clientX;
+    const deltaY = touch.clientY - startYRef.current;
+
+    // Decide once per gesture whether the user is swiping horizontally or
+    // scrolling vertically. Without this, a fast vertical scroll that has
+    // any tiny horizontal component would briefly reveal the red delete
+    // button before snapping back.
+    if (scrollLockRef.current === "none") {
+      if (Math.hypot(deltaX, deltaY) < DIRECTION_LOCK_PX) return;
+      scrollLockRef.current =
+        Math.abs(deltaY) > Math.abs(deltaX) ? "vertical" : "horizontal";
     }
 
+    if (scrollLockRef.current === "vertical") {
+      // Let the browser scroll; don't touch the transform.
+      return;
+    }
+
+    // Horizontal swipe — only reveal the delete button when swiping left
+    // (deltaX > 0 in the current refs; content moves in -X direction, which
+    // in RTL exposes the delete action on the end side).
     if (deltaX > 0) {
       const capped = Math.min(deltaX, DELETE_THRESHOLD + 20);
       setTranslateX(-capped);
@@ -77,12 +88,28 @@ export function SwipeableListItem({
     }
   }
 
-  function handleTouchEnd() {
+  function handleTouchEnd(e: React.TouchEvent) {
     if (selectionMode) return;
-    clearLongPress();
+
+    const wasHorizontal = scrollLockRef.current === "horizontal";
+    scrollLockRef.current = "none";
 
     if (!swiping) {
       setTranslateX(0);
+      // Double-tap detection — only if this wasn't a swipe or vertical scroll.
+      if (!wasHorizontal) {
+        const now = Date.now();
+        if (now - lastTapRef.current < DOUBLE_TAP_MS) {
+          // Suppress the synthesized click / text-selection callout.
+          e.preventDefault();
+          lastTapRef.current = 0;
+          onEdit?.(item);
+          return;
+        }
+        lastTapRef.current = now;
+      } else {
+        lastTapRef.current = 0;
+      }
       return;
     }
 
@@ -94,6 +121,7 @@ export function SwipeableListItem({
       setTranslateX(0);
     }
     setSwiping(false);
+    lastTapRef.current = 0;
   }
 
   function handleDelete() {
@@ -107,17 +135,9 @@ export function SwipeableListItem({
     setTranslateX(0);
   }
 
-  // Mouse fallback for desktop (long press only)
-  function handleMouseDown() {
+  function handleDoubleClick() {
     if (selectionMode) return;
-    didSwipeRef.current = false;
-    longPressTimer.current = setTimeout(() => {
-      onLongPress?.(item);
-    }, LONG_PRESS_MS);
-  }
-
-  function handleMouseUp() {
-    clearLongPress();
+    onEdit?.(item);
   }
 
   // In selection mode, clicking toggles selection
@@ -150,7 +170,7 @@ export function SwipeableListItem({
 
       {/* Swipeable content */}
       <div
-        className="relative z-10 bg-surface"
+        className="relative z-10 select-none bg-surface [-webkit-touch-callout:none] [-webkit-user-select:none]"
         style={{
           transform: selectionMode ? undefined : `translateX(${translateX}px)`,
           transition: swiping ? "none" : "transform 200ms cubic-bezier(0.32, 0.72, 0, 1)",
@@ -158,15 +178,13 @@ export function SwipeableListItem({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        onDoubleClick={handleDoubleClick}
         onClick={!selectionMode && translateX !== 0 ? handleReset : undefined}
       >
         <ListItem
           item={item}
           onToggle={selectionMode ? undefined : onToggle}
-          onEdit={!selectionMode && onLongPress ? () => onLongPress(item) : undefined}
+          onEdit={!selectionMode && onEdit ? () => onEdit(item) : undefined}
           selectionMode={selectionMode}
           selected={selected}
         />
