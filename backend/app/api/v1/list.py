@@ -642,6 +642,7 @@ async def update_item(
         item.category_id = body.category_id
 
     await db.flush()
+    await db.refresh(item)
 
     await logger.ainfo("item_updated", item_id=str(item_id))
 
