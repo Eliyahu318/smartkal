@@ -9,6 +9,7 @@ import {
 import { useAuthStore } from "@/store/authStore";
 import { GroupedList } from "@/components/ui/GroupedList";
 import { GroupedListRow } from "@/components/ui/GroupedListRow";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export function MorePage() {
   const navigate = useNavigate();
@@ -19,13 +20,11 @@ export function MorePage() {
   };
 
   return (
-    <div className="px-3 pt-14 pb-8">
-      <div className="px-2">
-        <h1 className="text-largeTitle text-label">עוד</h1>
-        <p className="mb-5 mt-1 text-subhead text-label-secondary/80">
-          הגדרות, דשבורד, וניהול קטגוריות
-        </p>
-      </div>
+    <div className="px-3 pb-8">
+      <PageHeader
+        title="עוד"
+        subtitle="הגדרות, דשבורד, וניהול קטגוריות"
+      />
 
       <GroupedList>
         <GroupedListRow

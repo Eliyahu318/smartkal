@@ -10,6 +10,7 @@ import { PriceComparisonCard } from "../components/PriceComparisonCard";
 import { ShoppingList } from "../components/ShoppingList";
 import type { CategoryInfo, ListItemData, ListResponse } from "../components/ShoppingList";
 import { showToast } from "../components/Toast";
+import { PageHeader } from "../components/ui/PageHeader";
 import { springSnappy, tapScale } from "@/lib/motion";
 import type { DuplicatesResponse } from "../types/duplicates";
 
@@ -263,62 +264,60 @@ export function ListPage() {
     }
   }, [selectedIds, exitSelectionMode, fetchList, fetchDuplicates]);
 
+  // Selection mode header elements
+  const selectionLeading = selectionMode ? (
+    <motion.button
+      type="button"
+      onClick={exitSelectionMode}
+      whileTap={tapScale}
+      transition={springSnappy}
+      className="rounded-ios-sm p-1.5 text-label-tertiary transition-colors active:bg-fill/15"
+      aria-label="ביטול בחירה"
+    >
+      <X className="h-5 w-5" />
+    </motion.button>
+  ) : undefined;
+
+  const selectionTrailing = selectionMode ? (
+    <motion.button
+      type="button"
+      onClick={handleSelectAll}
+      whileTap={tapScale}
+      transition={springSnappy}
+      className={`rounded-ios-sm p-1.5 transition-colors ${
+        allSelected
+          ? "text-brand active:bg-brand/10"
+          : "text-label-tertiary active:bg-fill/15"
+      }`}
+      aria-label={allSelected ? "בטל בחירת הכל" : "בחר הכל"}
+    >
+      <CheckSquare className="h-5 w-5" />
+    </motion.button>
+  ) : undefined;
+
+  const listTrailing = !selectionMode && data && (data.total_active > 0 || data.total_completed > 0) ? (
+    <motion.button
+      type="button"
+      onClick={enterSelectionMode}
+      whileTap={tapScale}
+      transition={springSnappy}
+      className="rounded-ios-sm p-1.5 text-label-tertiary transition-colors active:bg-fill/15"
+      aria-label="בחירה מרובה"
+      title="בחירה מרובה"
+    >
+      <ListChecks className="h-5 w-5" />
+    </motion.button>
+  ) : undefined;
+
   return (
-    <div className="pt-14">
-      {/* Header */}
-      <div className="flex items-center px-5 pb-3">
-        {selectionMode ? (
-          <>
-            <motion.button
-              type="button"
-              onClick={exitSelectionMode}
-              whileTap={tapScale}
-              transition={springSnappy}
-              className="rounded-ios-sm p-1.5 text-label-tertiary transition-colors hover:bg-fill/15 hover:text-label-secondary"
-              aria-label="ביטול בחירה"
-            >
-              <X className="h-5 w-5" />
-            </motion.button>
-            <span className="mr-2 text-subhead font-medium text-label-secondary">
-              {selectedIds.size > 0 ? `${selectedIds.size} נבחרו` : "בחר פריטים"}
-            </span>
-            <div className="flex-1" />
-            <motion.button
-              type="button"
-              onClick={handleSelectAll}
-              whileTap={tapScale}
-              transition={springSnappy}
-              className={`rounded-ios-sm p-1.5 transition-colors ${
-                allSelected
-                  ? "text-brand hover:bg-brand/10"
-                  : "text-label-tertiary hover:bg-fill/15 hover:text-label-secondary"
-              }`}
-              aria-label={allSelected ? "בטל בחירת הכל" : "בחר הכל"}
-              title={allSelected ? "בטל בחירת הכל" : "בחר הכל"}
-            >
-              <CheckSquare className="h-5 w-5" />
-            </motion.button>
-          </>
-        ) : (
-          <>
-            <h1 className="text-largeTitle text-label">רשימת קניות</h1>
-            <div className="flex-1" />
-            {data && (data.total_active > 0 || data.total_completed > 0) && (
-              <motion.button
-                type="button"
-                onClick={enterSelectionMode}
-                whileTap={tapScale}
-                transition={springSnappy}
-                className="mt-2 rounded-ios-sm p-1.5 text-label-tertiary transition-colors hover:bg-fill/15 hover:text-label-secondary"
-                aria-label="בחירה מרובה"
-                title="בחירה מרובה"
-              >
-                <ListChecks className="h-5 w-5" />
-              </motion.button>
-            )}
-          </>
-        )}
-      </div>
+    <div>
+      <PageHeader
+        title={selectionMode
+          ? (selectedIds.size > 0 ? `${selectedIds.size} נבחרו` : "בחר פריטים")
+          : "רשימת קניות"}
+        leading={selectionLeading}
+        trailing={selectionTrailing ?? listTrailing}
+      />
 
       {/* Duplicates badge — surfaces if the dedup engine found candidate groups */}
       {!selectionMode && duplicateGroupCount > 0 && (
@@ -326,11 +325,11 @@ export function ListPage() {
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={springSnappy}
-          className="px-5 pb-3"
+          className="px-4 pb-3"
         >
           <Link
             to="/duplicates"
-            className="flex items-center gap-2 rounded-ios border border-accent-purple/20 bg-accent-purple/10 px-3 py-2 text-subhead font-medium text-accent-purple transition-colors hover:bg-accent-purple/15"
+            className="flex items-center gap-2 rounded-ios border border-accent-purple/20 bg-accent-purple/8 px-3 py-2.5 text-subhead font-medium text-accent-purple transition-colors active:bg-accent-purple/15"
           >
             <GitMerge className="h-4 w-4" />
             <span>נמצאו {duplicateGroupCount} קבוצות כפילויות — לחץ לאיחוד</span>
@@ -341,7 +340,7 @@ export function ListPage() {
       {/* Price comparison card — hidden when no price data */}
       <PriceComparisonCard />
 
-      {/* Add item input */}
+      {/* Add item input — always visible inline */}
       {!selectionMode && <AddItemInput onItemAdded={handleItemAdded} />}
 
       {/* Loading */}

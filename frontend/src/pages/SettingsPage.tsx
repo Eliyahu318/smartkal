@@ -1,22 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ChevronRight,
   GitMerge,
   Sparkles,
   Sun,
   Moon,
   Smartphone,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { useAuthStore } from "@/store/authStore";
 import { useTheme } from "@/hooks/useTheme";
 import api, { getErrorMessageHe } from "@/api/client";
 import { showToast } from "@/components/Toast";
 import { GroupedList } from "@/components/ui/GroupedList";
 import { GroupedListRow } from "@/components/ui/GroupedListRow";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { springSnappy, tapScale } from "@/lib/motion";
 import type { ThemePreference } from "@/store/themeStore";
 import type { AutoMergeResponse } from "@/types/duplicates";
 
@@ -64,24 +62,12 @@ export function SettingsPage() {
   const ThemeIcon = THEME_ICONS[theme];
 
   return (
-    <div className="px-3 pt-14 pb-8">
-      {/* Header with back button */}
-      <div className="mb-2 px-2">
-        <motion.button
-          onClick={() => navigate("/more")}
-          whileTap={tapScale}
-          transition={springSnappy}
-          className="mb-3 flex items-center gap-1 text-subhead text-brand transition-colors hover:text-brand-hover"
-        >
-          <ChevronRight className="h-4 w-4" />
-          <span>חזרה</span>
-        </motion.button>
-
-        <h1 className="text-largeTitle text-label">הגדרות</h1>
-        <p className="mt-1 text-subhead text-label-secondary/80">
-          ניהול חשבון והעדפות
-        </p>
-      </div>
+    <div className="px-3 pb-8">
+      <PageHeader
+        title="הגדרות"
+        subtitle="ניהול חשבון והעדפות"
+        onBack={() => navigate("/more")}
+      />
 
       {/* Account section */}
       <GroupedList header="חשבון">

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ChevronRight,
   GripVertical,
   Pencil,
   Plus,
@@ -9,8 +8,11 @@ import {
   Check,
   X,
 } from "lucide-react";
+import { motion } from "motion/react";
 import api from "@/api/client";
 import { showToast } from "@/components/Toast";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { springSnappy, tapScale } from "@/lib/motion";
 
 interface Category {
   id: string;
@@ -184,30 +186,22 @@ export function CategoryManagementPage() {
   }
 
   return (
-    <div className="px-5 pt-14 pb-8">
-      {/* Header */}
-      <button
-        onClick={() => navigate("/more")}
-        className="mb-4 flex items-center gap-1 text-subhead text-brand transition-colors hover:text-brand-hover"
-      >
-        <ChevronRight className="h-4 w-4" />
-        <span>חזרה</span>
-      </button>
-
-      <div className="mb-5 flex items-center justify-between">
-        <div>
-          <h1 className="text-largeTitle text-label">ניהול קטגוריות</h1>
-          <p className="mt-1 text-subhead text-label-secondary/80">
-            שנה שם, סדר מחדש, או מחק קטגוריות
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-on-brand shadow-ios-md transition-all active:scale-95 active:bg-brand-pressed"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
-      </div>
+    <div className="px-4 pb-8">
+      <PageHeader
+        title="ניהול קטגוריות"
+        subtitle="שנה שם, סדר מחדש, או מחק קטגוריות"
+        onBack={() => navigate("/more")}
+        trailing={
+          <motion.button
+            onClick={() => setShowAdd(true)}
+            whileTap={tapScale}
+            transition={springSnappy}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-brand text-on-brand shadow-ios-sm transition-all active:bg-brand-pressed"
+          >
+            <Plus className="h-4 w-4" />
+          </motion.button>
+        }
+      />
 
       {/* Add new category inline */}
       {showAdd && (

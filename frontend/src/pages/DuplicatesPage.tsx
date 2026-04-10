@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRight, GitMerge, Sparkles } from "lucide-react";
+import { GitMerge, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import api, { getErrorMessageHe } from "../api/client";
 import { showToast } from "../components/Toast";
 import { IOSButton } from "../components/ui/IOSButton";
+import { PageHeader } from "../components/ui/PageHeader";
 import { springSnappy, tapScale } from "@/lib/motion";
 import type {
   AutoMergeResponse,
@@ -45,7 +46,7 @@ function GroupCard({ group, onMerged, onDismissed }: GroupCardProps) {
 
   return (
     <div
-      className="mx-3 mb-4 rounded-ios-lg border border-separator/40 bg-surface p-4 shadow-ios-sm"
+      className="mx-4 mb-4 rounded-ios-lg border border-separator/20 bg-surface p-4 shadow-ios-sm"
       dir="rtl"
     >
       <h2 className="mb-2 text-headline text-label">{group.canonical}</h2>
@@ -176,21 +177,11 @@ export function DuplicatesPage() {
   const visibleGroups = groups.filter((g) => !dismissed.has(g.canonical));
 
   return (
-    <div className="pt-14 pb-24" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-5 pb-4">
-        <motion.button
-          type="button"
-          onClick={() => navigate("/list")}
-          whileTap={tapScale}
-          transition={springSnappy}
-          className="rounded-ios-sm p-1.5 text-label-tertiary transition-colors hover:bg-fill/15 hover:text-label-secondary"
-          aria-label="חזרה לרשימה"
-        >
-          <ArrowRight className="h-5 w-5" />
-        </motion.button>
-        <h1 className="text-title1 text-label">איחוד פריטים כפולים</h1>
-      </div>
+    <div className="pb-24" dir="rtl">
+      <PageHeader
+        title="איחוד פריטים כפולים"
+        onBack={() => navigate("/list")}
+      />
 
       {/* Loading skeleton */}
       {loading && (

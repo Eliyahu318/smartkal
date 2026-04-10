@@ -6,6 +6,7 @@ import { showToast } from "../components/Toast";
 import { ReceiptUpload } from "../components/ReceiptUpload";
 import { ReceiptResults } from "../components/ReceiptResults";
 import type { UploadResult } from "../components/ReceiptResults";
+import { PageHeader } from "../components/ui/PageHeader";
 
 // --- Types matching backend ReceiptListResponse ---
 
@@ -399,20 +400,21 @@ export function ReceiptsPage() {
   const monthGroups = groupByMonth(history);
 
   return (
-    <div className="pt-14">
-      {/* Header */}
-      <div className="flex items-center justify-between px-5 pb-3">
-        <h1 className="text-largeTitle text-label">קבלות</h1>
-        {view === "results" && (
-          <button
-            type="button"
-            onClick={handleNewUpload}
-            className="text-subhead font-medium text-brand transition-colors hover:text-brand-hover"
-          >
-            העלאה חדשה
-          </button>
-        )}
-      </div>
+    <div>
+      <PageHeader
+        title="קבלות"
+        trailing={
+          view === "results" ? (
+            <button
+              type="button"
+              onClick={handleNewUpload}
+              className="text-subhead font-medium text-brand transition-colors active:text-brand-pressed"
+            >
+              העלאה חדשה
+            </button>
+          ) : undefined
+        }
+      />
 
       {/* Upload zone */}
       {view === "upload" && (
@@ -489,7 +491,7 @@ export function ReceiptsPage() {
                 <p className="px-5 pb-1.5 pt-3 text-footnote font-semibold uppercase tracking-wide text-label-tertiary/70">
                   {month}
                 </p>
-                <div className="mx-3 overflow-hidden rounded-ios-lg bg-surface shadow-ios-sm divide-y divide-separator/40">
+                <div className="mx-4 overflow-hidden rounded-ios-lg bg-surface shadow-ios-sm ring-1 ring-separator/10 divide-y divide-separator/30">
                   {receipts.map((r) => (
                     <ReceiptHistoryItem
                       key={r.id}

@@ -143,7 +143,7 @@ function CompletedSection({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="mt-6 border-t border-separator/40 pt-3">
+    <div className="mt-6 border-t border-separator/20 pt-3">
       <div className="flex items-center px-5 py-2">
         <button
           type="button"
@@ -173,7 +173,7 @@ function CompletedSection({
       </div>
 
       {expanded && (
-        <div className="mx-3 mt-1 overflow-hidden rounded-ios-lg bg-surface shadow-ios-sm divide-y divide-separator/40">
+        <div className="mx-4 mt-1 overflow-hidden rounded-ios-lg bg-surface shadow-ios-sm ring-1 ring-separator/10 divide-y divide-separator/30">
           {items.map((item) => (
             <SwipeableListItem
               key={item.id}

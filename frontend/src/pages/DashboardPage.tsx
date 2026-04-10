@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
 import {
   PieChart,
   Pie,
@@ -15,6 +14,7 @@ import {
 } from "recharts";
 import api from "../api/client";
 import { useChartColors } from "@/hooks/useChartColors";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 
 /* ---------- API response types ---------- */
@@ -144,16 +144,10 @@ export function DashboardPage() {
   /* ---------- Header ---------- */
 
   const header = (
-    <div className="flex items-center gap-2 px-5 pt-14 pb-2">
-      <button
-        onClick={() => navigate("/more")}
-        className="flex items-center gap-1 text-brand transition-colors hover:text-brand-hover"
-      >
-        <ChevronRight className="h-5 w-5" />
-        <span className="text-subhead">עוד</span>
-      </button>
-      <h1 className="flex-1 text-largeTitle text-label">דשבורד</h1>
-    </div>
+    <PageHeader
+      title="דשבורד"
+      onBack={() => navigate("/more")}
+    />
   );
 
   /* ---------- Loading skeleton ---------- */

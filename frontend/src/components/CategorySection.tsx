@@ -82,7 +82,7 @@ export function CategorySection({
             transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
             className="overflow-hidden"
           >
-            <div className="mx-3 overflow-hidden rounded-ios-lg bg-surface shadow-ios-sm divide-y divide-separator/40">
+            <div className="mx-4 overflow-hidden rounded-ios-lg bg-surface shadow-ios-sm ring-1 ring-separator/10 divide-y divide-separator/30">
               {group.items.map((item) => (
                 <SwipeableListItem
                   key={item.id}

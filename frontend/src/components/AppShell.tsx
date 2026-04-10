@@ -23,7 +23,7 @@ export function AppShell({ children }: AppShellProps) {
       */}
       <div className="relative flex h-[100svh] w-full flex-col overflow-hidden bg-surface shadow-ios-sheet sm:h-[85vh] sm:max-w-phone sm:rounded-ios-sheet sm:ring-1 sm:ring-separator/40">
         {/* Scrollable content area */}
-        <main className="min-h-0 flex-1 overflow-y-auto">
+        <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain scroll-pt-header">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={location.pathname}

@@ -113,4 +113,9 @@
   .pt-safe {
     padding-top: env(safe-area-inset-top, 0px);
   }
+
+  /* Sticky header height = safe-area + 44px nav bar — used to offset content */
+  .scroll-pt-header {
+    scroll-padding-top: calc(env(safe-area-inset-top, 0px) + 44px);
+  }
 }
