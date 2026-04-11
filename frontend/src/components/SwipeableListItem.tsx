@@ -6,8 +6,10 @@ interface SwipeableListItemProps {
   item: ListItemData;
   onToggle?: (item: ListItemData) => void;
   onDelete?: (item: ListItemData) => void;
-  /** Fired on double-tap (touch) or double-click (mouse) — opens details sheet. */
+  /** Opens the full details sheet (MoreVertical button). */
   onEdit?: (item: ListItemData) => void;
+  /** Inline rename — fired after double-tap edit is committed. */
+  onRename?: (item: ListItemData, newName: string) => void;
   selectionMode?: boolean;
   selected?: boolean;
   onSelectionToggle?: (item: ListItemData) => void;
@@ -27,6 +29,7 @@ export function SwipeableListItem({
   onToggle,
   onDelete,
   onEdit,
+  onRename,
   selectionMode,
   selected,
   onSelectionToggle,
@@ -34,6 +37,7 @@ export function SwipeableListItem({
   const [translateX, setTranslateX] = useState(0);
   const [swiping, setSwiping] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const startXRef = useRef(0);
   const startYRef = useRef(0);
@@ -43,7 +47,7 @@ export function SwipeableListItem({
   const containerRef = useRef<HTMLDivElement>(null);
 
   function handleTouchStart(e: React.TouchEvent) {
-    if (selectionMode) return;
+    if (selectionMode || editing) return;
     const touch = e.touches[0];
     if (!touch) return;
     startXRef.current = touch.clientX;
@@ -53,7 +57,7 @@ export function SwipeableListItem({
   }
 
   function handleTouchMove(e: React.TouchEvent) {
-    if (selectionMode) return;
+    if (selectionMode || editing) return;
     const touch = e.touches[0];
     if (!touch) return;
     currentXRef.current = touch.clientX;
@@ -89,7 +93,7 @@ export function SwipeableListItem({
   }
 
   function handleTouchEnd(e: React.TouchEvent) {
-    if (selectionMode) return;
+    if (selectionMode || editing) return;
 
     const wasHorizontal = scrollLockRef.current === "horizontal";
     scrollLockRef.current = "none";
@@ -103,7 +107,7 @@ export function SwipeableListItem({
           // Suppress the synthesized click / text-selection callout.
           e.preventDefault();
           lastTapRef.current = 0;
-          onEdit?.(item);
+          setEditing(true);
           return;
         }
         lastTapRef.current = now;
@@ -137,7 +141,7 @@ export function SwipeableListItem({
 
   function handleDoubleClick() {
     if (selectionMode) return;
-    onEdit?.(item);
+    setEditing(true);
   }
 
   // In selection mode, clicking toggles selection
@@ -170,7 +174,7 @@ export function SwipeableListItem({
 
       {/* Swipeable content */}
       <div
-        className="relative z-10 select-none bg-surface [-webkit-touch-callout:none] [-webkit-user-select:none]"
+        className={`relative z-10 bg-surface ${editing ? "" : "select-none [-webkit-touch-callout:none] [-webkit-user-select:none]"}`}
         style={{
           transform: selectionMode ? undefined : `translateX(${translateX}px)`,
           transition: swiping ? "none" : "transform 200ms cubic-bezier(0.32, 0.72, 0, 1)",
@@ -187,6 +191,12 @@ export function SwipeableListItem({
           onEdit={!selectionMode && onEdit ? () => onEdit(item) : undefined}
           selectionMode={selectionMode}
           selected={selected}
+          editing={editing}
+          onCancelEdit={() => setEditing(false)}
+          onCommitRename={(newName) => {
+            setEditing(false);
+            onRename?.(item, newName);
+          }}
         />
       </div>
     </div>

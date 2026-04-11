@@ -9,6 +9,7 @@ interface CategorySectionProps {
   onToggle?: (item: ListItemData) => void;
   onDelete?: (item: ListItemData) => void;
   onEdit?: (item: ListItemData) => void;
+  onRename?: (item: ListItemData, newName: string) => void;
   selectionMode?: boolean;
   selectedIds?: Set<string>;
   onSelectionToggle?: (item: ListItemData) => void;
@@ -21,6 +22,7 @@ export function CategorySection({
   onToggle,
   onDelete,
   onEdit,
+  onRename,
   selectionMode,
   selectedIds,
   onSelectionToggle,
@@ -90,6 +92,7 @@ export function CategorySection({
                   onToggle={onToggle}
                   onDelete={onDelete}
                   onEdit={onEdit}
+                  onRename={onRename}
                   selectionMode={selectionMode}
                   selected={selectedIds?.has(item.id)}
                   onSelectionToggle={onSelectionToggle}

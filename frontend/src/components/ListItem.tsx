@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MoreVertical, Check } from "lucide-react";
 import { motion } from "motion/react";
 import { springSnappy } from "@/lib/motion";
@@ -10,6 +10,9 @@ interface ListItemProps {
   onEdit?: (item: ListItemData) => void;
   selectionMode?: boolean;
   selected?: boolean;
+  editing?: boolean;
+  onCancelEdit?: () => void;
+  onCommitRename?: (newName: string) => void;
 }
 
 export function ListItem({
@@ -18,10 +21,35 @@ export function ListItem({
   onEdit,
   selectionMode,
   selected,
+  editing,
+  onCancelEdit,
+  onCommitRename,
 }: ListItemProps) {
   const isCompleted = item.status === "completed";
   const isAutoRefreshed = item.source === "auto_refresh";
   const [animating, setAnimating] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editing]);
+
+  function handleRenameKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onCommitRename?.(e.currentTarget.value);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      onCancelEdit?.();
+    }
+  }
+
+  function handleRenameBlur(e: React.FocusEvent<HTMLInputElement>) {
+    onCommitRename?.(e.currentTarget.value);
+  }
 
   function handleToggle() {
     if (!onToggle || selectionMode) return;
@@ -96,15 +124,27 @@ export function ListItem({
             title="רוענן אוטומטית"
           />
         )}
-        <span
-          className={`text-callout leading-tight transition-all duration-300 ${
-            showChecked
-              ? "text-label-tertiary line-through"
-              : "text-label"
-          }`}
-        >
-          {item.name}
-        </span>
+        {editing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            defaultValue={item.name}
+            onKeyDown={handleRenameKeyDown}
+            onBlur={handleRenameBlur}
+            className="-mx-1 min-w-0 flex-1 rounded-sm bg-transparent px-1 text-callout leading-tight text-label outline-none ring-1 ring-brand/30 caret-brand"
+            dir="auto"
+          />
+        ) : (
+          <span
+            className={`text-callout leading-tight transition-all duration-300 ${
+              showChecked
+                ? "text-label-tertiary line-through"
+                : "text-label"
+            }`}
+          >
+            {item.name}
+          </span>
+        )}
       </div>
 
       {/* Quantity badge */}

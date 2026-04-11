@@ -119,6 +119,21 @@ export function ListPage() {
     setDetailsItem(item);
   }, [selectionMode]);
 
+  const handleRename = useCallback(async (item: ListItemData, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === item.name) return;
+    try {
+      await api.put(`/api/v1/list/items/${item.id}`, {
+        name: trimmed,
+        quantity: item.quantity,
+        note: item.note,
+      });
+      await fetchList();
+    } catch (err) {
+      setError(getErrorMessageHe(err));
+    }
+  }, [fetchList]);
+
   const handleDetailsSaved = useCallback(async () => {
     await fetchList();
   }, [fetchList]);
@@ -362,6 +377,7 @@ export function ListPage() {
           onToggle={handleToggle}
           onDelete={handleDelete}
           onEdit={handleEdit}
+          onRename={handleRename}
           onResetAll={handleResetAll}
           onRecategorize={handleRecategorize}
           recategorizing={recategorizing}
