@@ -2,11 +2,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from app.api.v1 import api_v1_router
 from app.config import get_settings
+from app.db.session import engine
 from app.core.exception_handlers import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.middleware import (
@@ -16,6 +19,26 @@ from app.core.middleware import (
 )
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()
+
+
+async def get_db_health() -> dict[str, str]:
+    """Probe database connectivity with a trivial `SELECT 1`.
+
+    Used by the readiness endpoint. Returns a status dict and never raises, so a
+    DB outage surfaces as a clean 503 rather than a 500. Defined as a dependency
+    so tests can override it via `app.dependency_overrides`.
+
+    Returns:
+        ``{"status": "ready", "database": "ok"}`` when the query succeeds,
+        otherwise ``{"status": "not_ready", "database": "unreachable"}``.
+    """
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        await logger.aerror("readiness_db_check_failed", exc_info=True)
+        return {"status": "not_ready", "database": "unreachable"}
+    return {"status": "ready", "database": "ok"}
 
 
 @asynccontextmanager
@@ -62,7 +85,25 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health_check() -> dict[str, str]:
+        """Liveness probe: the process is up and serving HTTP.
+
+        Intentionally does NOT touch the database — this is the signal an
+        orchestrator uses to decide the container is alive. For "can it actually
+        serve requests?" use /health/ready.
+        """
         return {"status": "ok"}
+
+    @app.get("/health/ready")
+    async def readiness_check(
+        health: dict[str, str] = Depends(get_db_health),
+    ) -> JSONResponse:
+        """Readiness probe: 200 when the database is reachable, 503 otherwise.
+
+        Unlike /health, this executes a real query, so external uptime monitors
+        see the true serving state instead of a process-is-up false positive.
+        """
+        status_code = 200 if health["status"] == "ready" else 503
+        return JSONResponse(status_code=status_code, content=health)
 
     return app
 
